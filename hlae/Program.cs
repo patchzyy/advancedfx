@@ -303,6 +303,86 @@ namespace AfxGui
             }
         }
 
+        static void ProcessArgsCs2Launcher(string[] args)
+        {
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+                switch (arg)
+                {
+                    case "-autoStart":
+                        Globals.AutoStartCs2 = true;
+                        break;
+                    case "-noGui":
+                        Globals.NoGui = true;
+                        break;
+                    case "-cs2Exe":
+                        if (i + 1 < args.Length)
+                        {
+                            GlobalConfig.Instance.Settings.LauncherCs2.Cs2Exe = args[i + 1];
+                            i++;
+                        }
+                        break;
+                    case "-mmcfgEnabled":
+                        if (i + 1 < args.Length)
+                        {
+                            Boolean.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.MmcfgEnabled);
+                            i++;
+                        }
+                        break;
+                    case "-mmcfg":
+                        if (i + 1 < args.Length)
+                        {
+                            GlobalConfig.Instance.Settings.LauncherCs2.Mmcfg = args[i + 1];
+                            i++;
+                        }
+                        break;
+                    case "-gfxEnabled":
+                        if (i + 1 < args.Length)
+                        {
+                            Boolean.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.GfxEnabled);
+                            i++;
+                        }
+                        break;
+                    case "-gfxWidth":
+                        if (i + 1 < args.Length)
+                        {
+                            UInt16.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.GfxWidth);
+                            i++;
+                        }
+                        break;
+                    case "-gfxHeight":
+                        if (i + 1 < args.Length)
+                        {
+                            UInt16.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.GfxHeight);
+                            i++;
+                        }
+                        break;
+                    case "-gfxFull":
+                        if (i + 1 < args.Length)
+                        {
+                            Boolean.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.GfxFull);
+                            i++;
+                        }
+                        break;
+                    case "-avoidVac":
+                        if (i + 1 < args.Length)
+                        {
+                            Boolean.TryParse(args[i + 1], out GlobalConfig.Instance.Settings.LauncherCs2.AvoidVac);
+                            i++;
+                        }
+                        break;
+                    case "-customLaunchOptions":
+                        if (i + 1 < args.Length)
+                        {
+                            GlobalConfig.Instance.Settings.LauncherCs2.CustomLaunchOptions = args[i + 1];
+                            i++;
+                        }
+                        break;
+                }
+            }
+        }
+
         static void ProcessCommandLine()
         {
             string [] argv = new string[0];
@@ -331,6 +411,10 @@ namespace AfxGui
             if (Array.Exists<string>(argv, p => p == "-customLoader"))
             {
                 ProcessArgsCustomLoader(argv);
+            }
+            else if (Array.Exists<string>(argv, p => p == "-cs2Launcher"))
+            {
+                ProcessArgsCs2Launcher(argv);
             }
             else if (Array.Exists<string>(argv, p => p == "-csgoLauncher"))
             {
@@ -385,6 +469,13 @@ namespace AfxGui
 
             bool bOk = true;
 
+            // start-up CS2 if requested (i.e. by command line)
+            if (Globals.AutoStartCs2)
+            {
+                if (!LaunchCs2.Launch(GlobalConfig.Instance.Settings.LauncherCs2))
+                    bOk = false;
+            }
+
             // start-up CS:GO if requested (i.e. by command line)
             if (Globals.AutoStartCsgo)
             {
@@ -421,10 +512,10 @@ namespace AfxGui
                 }
                 if (null != environment)
                 {
-                    environment += "\0\0";
+                    environment += "\0";
                 }
 
-                if (!Loader.Load(getHookPaths, GlobalConfig.Instance.Settings.CustomLoader.ProgramPath, GlobalConfig.Instance.Settings.CustomLoader.CmdLine, environment))
+                if (!Loader.Load(getHookPaths, GlobalConfig.Instance.Settings.CustomLoader.ProgramPath, GlobalConfig.Instance.Settings.CustomLoader.CmdLine, environment, !Globals.NoGui))
                     bOk = false;
             }
 

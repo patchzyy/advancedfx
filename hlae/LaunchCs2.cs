@@ -1,11 +1,29 @@
 ﻿using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace AfxGui
 {
     class LaunchCs2
     {
+        private static void SetProcessEnvironmentVariable(Dictionary<string, string> previousValues, string key, string value)
+        {
+            if (!previousValues.ContainsKey(key))
+            {
+                previousValues[key] = Environment.GetEnvironmentVariable(key, EnvironmentVariableTarget.Process);
+            }
+
+            Environment.SetEnvironmentVariable(key, value, EnvironmentVariableTarget.Process);
+        }
+
+        private static void RestoreProcessEnvironmentVariables(Dictionary<string, string> previousValues)
+        {
+            foreach (KeyValuePair<string, string> entry in previousValues)
+            {
+                Environment.SetEnvironmentVariable(entry.Key, entry.Value, EnvironmentVariableTarget.Process);
+            }
+        }
+
         public static bool RunLauncherDialog(IWin32Window dialogOwner)
         {
             bool bOk;
@@ -47,11 +65,12 @@ namespace AfxGui
 
         public static bool Launch(CfgLauncherCs2 config)
         {
-            String environment = null;
-
             String programPath = config.Cs2Exe;
 
-            String cmdLine = "-steam -insecure";
+            String cmdLine = "-steam";
+
+            if (config.AvoidVac)
+                cmdLine += " -insecure";
 
             if (config.GfxEnabled)
                 cmdLine += " " + (config.GfxFull ? "-full" : "-sw") + " -w " + config.GfxWidth + " -h " + config.GfxHeight;
@@ -64,25 +83,26 @@ namespace AfxGui
             if (0 < config.CustomLaunchOptions.Length)
                 cmdLine += " " + config.CustomLaunchOptions;
 
-            environment = "";
-            foreach (DictionaryEntry kv in Environment.GetEnvironmentVariables())
+            Dictionary<string, string> previousValues = new Dictionary<string, string>();
+            try
             {
-                environment += kv.Key + "=" + kv.Value + "\0";
-            }
+                if (config.MmcfgEnabled)
+                {
+                    SetProcessEnvironmentVariable(previousValues, "USRLOCALCSGO", config.Mmcfg);
+                }
 
-            if (config.MmcfgEnabled)
+                SetProcessEnvironmentVariable(previousValues, "SteamPath", Program.SteamInstallPath);
+                SetProcessEnvironmentVariable(previousValues, "SteamClientLaunch", "1");
+                SetProcessEnvironmentVariable(previousValues, "SteamGameId", "730");
+                SetProcessEnvironmentVariable(previousValues, "SteamAppId", "730");
+                SetProcessEnvironmentVariable(previousValues, "SteamOverlayGameId", "730");
+
+                return Loader.Load(GetHookPath, programPath, cmdLine, null, !Globals.NoGui);
+            }
+            finally
             {
-                environment += "USRLOCALCSGO=" + config.Mmcfg+"\0";
+                RestoreProcessEnvironmentVariables(previousValues);
             }
-
-            environment += "SteamPath=" + Program.SteamInstallPath + "\0";
-            environment += "SteamClientLaunch=1" + "\0";
-            environment += "SteamGameId=730" + "\0";
-            environment += "SteamAppId=730" + "\0";
-            environment += "SteamOverlayGameId=730" + "\0";
-            environment += "\0\0";
-
-            return Loader.Load(GetHookPath, programPath, cmdLine, environment);
         }
 
     }

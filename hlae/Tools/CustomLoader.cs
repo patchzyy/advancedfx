@@ -65,7 +65,7 @@ class CustomLoader
                 }
                 if (null != environment)
                 {
-                    environment += "\0\0";
+                    environment += "\0";
                 }
 
                 bOk = Loader.Load(getHookPaths, frm.Program, frm.CmdLine, environment);

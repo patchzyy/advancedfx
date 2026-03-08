@@ -11,6 +11,21 @@ namespace AfxGui
     {
         public delegate string GetHookPathDelegate(bool isProcess64Bit);
 
+        private static void WriteSilentErrorLog(Exception exception)
+        {
+            try
+            {
+                string errorPath = Path.Combine(Program.AppDataDir, "last-loader-error.txt");
+                File.WriteAllText(
+                    errorPath,
+                    DateTime.UtcNow.ToString("o") + Environment.NewLine + exception.ToString() + Environment.NewLine
+                );
+            }
+            catch
+            {
+            }
+        }
+
         public static bool Load(GetHookPathDelegate getHookPath, string programPath, string cmdLine, string environment = null, bool showErrorMessage = true)
         {
             return Load(new GetHookPathDelegate[] { getHookPath }, programPath, cmdLine, environment, showErrorMessage);
@@ -204,6 +219,10 @@ namespace AfxGui
                         frm.ShowDialog();
                     }
                 }
+                else
+                {
+                    WriteSilentErrorLog(e);
+                }
 
                 return false;
             }
@@ -216,6 +235,10 @@ namespace AfxGui
                         frm.Error = HlaeErrors.LoaderException(e);
                         frm.ShowDialog();
                     }
+                }
+                else
+                {
+                    WriteSilentErrorLog(e);
                 }
 
                 return false;

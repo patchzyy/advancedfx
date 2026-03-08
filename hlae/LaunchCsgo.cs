@@ -77,9 +77,9 @@ namespace AfxGui
             environment += "SteamGameId=730" + "\0";
             environment += "SteamAppId=730" + "\0";
             environment += "SteamOverlayGameId=730" + "\0";
-            environment += "\0\0";
+            environment += "\0";
 
-            return Loader.Load(GetHookPath, programPath, cmdLine, environment);
+            return Loader.Load(GetHookPath, programPath, cmdLine, environment, !Globals.NoGui);
         }
 
     }

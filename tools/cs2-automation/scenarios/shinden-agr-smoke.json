@@ -1,0 +1,59 @@
+{
+  "name": "shinden-agr-smoke",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 300,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2002,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/{{scenarioName}}.agr\""
+    },
+    {
+      "tick": 2032,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2040,
+      "command": "echo AIAUTO:AGR:STOPPED"
+    },
+    {
+      "tick": 2050,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-smoke",
+    "AIAUTO:SCENARIO:shinden-agr-smoke",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "Started AGR recording\\.",
+    "Stopped AGR recording\\.",
+    "AIAUTO:AGR:STOPPED"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\{{scenarioName}}.agr",
+      "minBytes": 128
+    }
+  ]
+}
