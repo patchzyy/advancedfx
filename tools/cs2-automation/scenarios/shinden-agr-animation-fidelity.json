@@ -1,0 +1,195 @@
+{
+  "name": "shinden-agr-animation-fidelity",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 300,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2010,
+      "command": "spec_mode 4; mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras -1; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels -1; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2011,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/pov-fidelity.agr\""
+    },
+    {
+      "tick": 2020,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2022,
+      "command": "echo AIAUTO:AGR:POV_FIDELITY"
+    },
+    {
+      "tick": 2030,
+      "command": "spec_mode 5; mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras -1; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels -1; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2031,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/observer-fidelity.agr\""
+    },
+    {
+      "tick": 2040,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2042,
+      "command": "echo AIAUTO:AGR:OBSERVER_FIDELITY"
+    },
+    {
+      "tick": 2050,
+      "command": "spec_mode 6; mirv_agr recordCamera 1; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras -1; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2051,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/hltv-fidelity.agr\""
+    },
+    {
+      "tick": 2060,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2062,
+      "command": "echo AIAUTO:AGR:HLTV_FIDELITY"
+    },
+    {
+      "tick": 2070,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-animation-fidelity",
+    "AIAUTO:SCENARIO:shinden-agr-animation-fidelity",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "AIAUTO:AGR:POV_FIDELITY",
+    "AIAUTO:AGR:OBSERVER_FIDELITY",
+    "AIAUTO:AGR:HLTV_FIDELITY"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\pov-fidelity.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\observer-fidelity.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\hltv-fidelity.agr",
+      "minBytes": 64
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "artifacts\\pov-fidelity.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "boneCount": {
+          "operator": "gt",
+          "valueFromProperty": "boneEntityCount"
+        },
+        "maxBoneCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "movingEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "mainCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\observer-fidelity.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "boneCount": {
+          "operator": "gt",
+          "valueFromProperty": "boneEntityCount"
+        },
+        "maxBoneCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "movingEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "mainCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\hltv-fidelity.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "mainCameraCount": {
+          "operator": "eq",
+          "valueFromProperty": "frameCount"
+        },
+        "playerCameraCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0,
+        "movingEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        }
+      }
+    }
+  ]
+}

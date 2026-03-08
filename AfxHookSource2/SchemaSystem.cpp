@@ -103,10 +103,18 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_pParent, "client.dll", "CGameSceneNode", "m_pParent");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_angAbsRotation, "client.dll", "CGameSceneNode", "m_angAbsRotation");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_vecAbsOrigin, "client.dll", "CGameSceneNode", "m_vecAbsOrigin");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_vecWrappedLocalOrigin, "client.dll", "CGameSceneNode", "m_vecWrappedLocalOrigin");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_angWrappedLocalRotation, "client.dll", "CGameSceneNode", "m_angWrappedLocalRotation");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_nParentAttachmentOrBone, "client.dll", "CGameSceneNode", "m_nParentAttachmentOrBone");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_bDormant, "client.dll", "CGameSceneNode", "m_bDormant");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance, "client.dll", "CBodyComponentSkeletonInstance", "m_skeletonInstance");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CSkeletonInstance.m_modelState, "client.dll", "CSkeletonInstance", "m_modelState");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CModelState.m_ModelName, "client.dll", "CModelState", "m_ModelName");
+	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragEnabled, "client.dll", "C_RagdollProp", "m_ragEnabled");
+	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragPos, "client.dll", "C_RagdollProp", "m_ragPos");
+	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragAngles, "client.dll", "C_RagdollProp", "m_ragAngles");
+	getOffset(&g_clientDllOffsets.C_RagdollProp.m_parentPhysicsBoneIndices, "client.dll", "C_RagdollProp", "m_parentPhysicsBoneIndices");
+	getOffset(&g_clientDllOffsets.C_RagdollProp.m_worldSpaceBoneComputationOrder, "client.dll", "C_RagdollProp", "m_worldSpaceBoneComputationOrder");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_iszPlayerName, "client.dll", "CBasePlayerController", "m_iszPlayerName");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_steamID, "client.dll", "CBasePlayerController", "m_steamID");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_hPawn, "client.dll", "CBasePlayerController", "m_hPawn");

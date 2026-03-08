@@ -587,6 +587,26 @@ function Test-AgrNumericExpectation {
     return $Actual -eq [double]$Expected
 }
 
+function Test-AgrVectorChanged {
+    param(
+        [double[]]$Current,
+        [double[]]$Reference,
+        [double]$Tolerance = 0.01
+    )
+
+    if ($null -eq $Current -or $null -eq $Reference) {
+        return $false
+    }
+
+    for ($i = 0; $i -lt [Math]::Min($Current.Length, $Reference.Length); ++$i) {
+        if ([math]::Abs([double]$Current[$i] - [double]$Reference[$i]) -gt $Tolerance) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Read-AgrFileSummary {
     param(
         [Parameter(Mandatory = $true)]
@@ -607,6 +627,10 @@ function Read-AgrFileSummary {
             $entityHandles = New-Object System.Collections.Generic.HashSet[int]
             $hiddenHandles = New-Object System.Collections.Generic.HashSet[int]
             $deletedHandles = New-Object System.Collections.Generic.HashSet[int]
+            $movingEntityHandles = New-Object System.Collections.Generic.HashSet[int]
+            $movingBoneHandles = New-Object System.Collections.Generic.HashSet[int]
+            $entityOriginByHandle = @{}
+            $firstBoneTranslationByHandle = @{}
             $summary = [ordered]@{
                 version = $version
                 frameCount = 0
@@ -623,6 +647,9 @@ function Read-AgrFileSummary {
                 uniqueHiddenHandleCount = 0
                 boneEntityCount = 0
                 boneCount = 0
+                maxBoneCount = 0
+                movingEntityHandleCount = 0
+                movingBoneEntityCount = 0
                 firstMainCameraPosX = $null
                 firstMainCameraPosY = $null
                 firstMainCameraPosZ = $null
@@ -694,6 +721,7 @@ function Read-AgrFileSummary {
                         [void]$entityHandles.Add($entityHandle)
                         $entityVisible = $false
                         $isViewModel = $false
+                        $entityOrigin = $null
 
                         while ($true) {
                             $entityToken = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
@@ -709,8 +737,22 @@ function Read-AgrFileSummary {
                                         [void]$summary.models.Add($modelName)
                                     }
                                     $entityVisible = $reader.ReadBoolean()
+                                    $matrixValues = New-Object double[] 12
                                     for ($i = 0; $i -lt 12; ++$i) {
-                                        [void]$reader.ReadSingle()
+                                        $matrixValues[$i] = [double]$reader.ReadSingle()
+                                    }
+                                    $entityOrigin = @(
+                                        $matrixValues[3],
+                                        $matrixValues[7],
+                                        $matrixValues[11]
+                                    )
+                                    if ($entityOriginByHandle.ContainsKey($entityHandle)) {
+                                        if (Test-AgrVectorChanged -Current $entityOrigin -Reference $entityOriginByHandle[$entityHandle]) {
+                                            [void]$movingEntityHandles.Add($entityHandle)
+                                        }
+                                    }
+                                    else {
+                                        $entityOriginByHandle[$entityHandle] = $entityOrigin
                                     }
                                 }
                                 "baseanimating" {
@@ -719,9 +761,28 @@ function Read-AgrFileSummary {
                                         $boneCount = $reader.ReadInt32()
                                         $summary.boneEntityCount++
                                         $summary.boneCount += $boneCount
+                                        if ($boneCount -gt $summary.maxBoneCount) {
+                                            $summary.maxBoneCount = $boneCount
+                                        }
                                         for ($boneIndex = 0; $boneIndex -lt $boneCount; ++$boneIndex) {
+                                            $boneMatrix = New-Object double[] 12
                                             for ($valueIndex = 0; $valueIndex -lt 12; ++$valueIndex) {
-                                                [void]$reader.ReadSingle()
+                                                $boneMatrix[$valueIndex] = [double]$reader.ReadSingle()
+                                            }
+                                            if ($boneIndex -eq 0) {
+                                                $boneTranslation = @(
+                                                    $boneMatrix[3],
+                                                    $boneMatrix[7],
+                                                    $boneMatrix[11]
+                                                )
+                                                if ($firstBoneTranslationByHandle.ContainsKey($entityHandle)) {
+                                                    if (Test-AgrVectorChanged -Current $boneTranslation -Reference $firstBoneTranslationByHandle[$entityHandle]) {
+                                                        [void]$movingBoneHandles.Add($entityHandle)
+                                                    }
+                                                }
+                                                else {
+                                                    $firstBoneTranslationByHandle[$entityHandle] = $boneTranslation
+                                                }
                                             }
                                         }
                                     }
@@ -759,6 +820,8 @@ function Read-AgrFileSummary {
             $summary.uniqueEntityHandleCount = $entityHandles.Count
             $summary.uniqueDeletedHandleCount = $deletedHandles.Count
             $summary.uniqueHiddenHandleCount = $hiddenHandles.Count
+            $summary.movingEntityHandleCount = $movingEntityHandles.Count
+            $summary.movingBoneEntityCount = $movingBoneHandles.Count
             $summary.models = @($summary.models | Sort-Object)
             return [PSCustomObject]$summary
         }

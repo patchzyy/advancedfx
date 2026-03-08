@@ -53,6 +53,9 @@ struct ClientDllOffsets_t {
         ptrdiff_t m_pParent = 0; // CGameSceneNode*
 		ptrdiff_t m_angAbsRotation = 0; // QAngle
         ptrdiff_t m_vecAbsOrigin = 0; // VectorWS
+		ptrdiff_t m_vecWrappedLocalOrigin = 0; // Vector
+		ptrdiff_t m_angWrappedLocalRotation = 0; // QAngle
+		ptrdiff_t m_nParentAttachmentOrBone = 0; // int16
 		ptrdiff_t m_bDormant = 0; // bool
 	} CGameSceneNode;
 
@@ -68,6 +71,14 @@ struct ClientDllOffsets_t {
 		ptrdiff_t m_hModel = 0; // CStrongHandle<InfoForResourceTypeCModel>
 		ptrdiff_t m_ModelName = 0; // CUtlSymbolLarge
 	} CModelState;
+
+	struct C_RagdollProp {
+		ptrdiff_t m_ragEnabled = 0; // C_NetworkUtlVectorBase<bool>
+		ptrdiff_t m_ragPos = 0; // C_NetworkUtlVectorBase<Vector>
+		ptrdiff_t m_ragAngles = 0; // C_NetworkUtlVectorBase<QAngle>
+		ptrdiff_t m_parentPhysicsBoneIndices = 0; // CUtlVector<int32>
+		ptrdiff_t m_worldSpaceBoneComputationOrder = 0; // CUtlVector<int32>
+	} C_RagdollProp;
 
 	struct C_BaseCSGrenadeProjectile {
 		ptrdiff_t m_bCanCreateGrenadeTrail = 0; // bool

@@ -81,6 +81,7 @@ public:
 
     const char* GetModelName() const;
     bool GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
+    bool GetRagdollBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
 
     uint8_t LookupAttachment(const char* attachmentName);
 	bool GetAttachment(uint8_t idx, SOURCESDK::Vector &origin, SOURCESDK::Quaternion &angles);

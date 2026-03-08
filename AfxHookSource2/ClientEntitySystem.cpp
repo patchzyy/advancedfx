@@ -22,6 +22,7 @@
 #include <map>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -49,6 +50,7 @@ constexpr ptrdiff_t kModelSkeletonBoneRotParent = 0x78;
 constexpr int kMaxBindPoseBones = 512;
 
 std::unordered_map<const void*, std::vector<SOURCESDK::matrix3x4_t>> g_BindPoseBoneCache;
+std::unordered_map<const void*, const void*> g_ModelHandlePermModelDataCache;
 
 bool SafeReadMemory(const void* src, void* dst, size_t size) {
 	if (!src || !dst || !size) return false;
@@ -115,6 +117,24 @@ bool IsPlausibleVector(const Source2UtlVectorView<T>& vectorView, int expectedCo
 	return true;
 }
 
+bool InvertRigidMatrix(const SOURCESDK::matrix3x4_t& matrix, SOURCESDK::matrix3x4_t& outMatrix) {
+	outMatrix[0][0] = matrix[0][0];
+	outMatrix[0][1] = matrix[1][0];
+	outMatrix[0][2] = matrix[2][0];
+	outMatrix[1][0] = matrix[0][1];
+	outMatrix[1][1] = matrix[1][1];
+	outMatrix[1][2] = matrix[2][1];
+	outMatrix[2][0] = matrix[0][2];
+	outMatrix[2][1] = matrix[1][2];
+	outMatrix[2][2] = matrix[2][2];
+
+	outMatrix[0][3] = -(outMatrix[0][0] * matrix[0][3] + outMatrix[0][1] * matrix[1][3] + outMatrix[0][2] * matrix[2][3]);
+	outMatrix[1][3] = -(outMatrix[1][0] * matrix[0][3] + outMatrix[1][1] * matrix[1][3] + outMatrix[1][2] * matrix[2][3]);
+	outMatrix[2][3] = -(outMatrix[2][0] * matrix[0][3] + outMatrix[2][1] * matrix[1][3] + outMatrix[2][2] * matrix[2][3]);
+
+	return true;
+}
+
 void QuaternionMatrix(const Source2QuaternionStorage& q, const SOURCESDK::Vector& position, SOURCESDK::matrix3x4_t& outMatrix) {
 	const float xx = q.x * q.x;
 	const float yy = q.y * q.y;
@@ -142,6 +162,20 @@ void QuaternionMatrix(const Source2QuaternionStorage& q, const SOURCESDK::Vector
 	outMatrix[2][3] = position.z;
 }
 
+bool TryReadModelSkeletonParents(const void* permModelData, std::vector<int16_t>& outParents) {
+	outParents.clear();
+	if (!permModelData) return false;
+
+	const auto* base = reinterpret_cast<const unsigned char*>(permModelData) + kPermModelDataModelSkeleton;
+
+	Source2UtlVectorView<int16_t> parents;
+	if (!SafeReadVectorView(base + kModelSkeletonParents, parents)) return false;
+	if (!IsPlausibleVector(parents)) return false;
+	outParents.resize(static_cast<size_t>(parents.m_Size));
+	if (!SafeReadMemory(parents.m_pMemory, outParents.data(), sizeof(int16_t) * outParents.size())) return false;
+	return !outParents.empty();
+}
+
 bool TryBuildBindPoseBones(const void* permModelData, std::vector<SOURCESDK::matrix3x4_t>& outBones) {
 	outBones.clear();
 	if (!permModelData) return false;
@@ -164,7 +198,7 @@ bool TryBuildBindPoseBones(const void* permModelData, std::vector<SOURCESDK::mat
 	if (!SafeReadMemory(positions.m_pMemory, positionData.data(), sizeof(SOURCESDK::Vector) * positionData.size())) return false;
 	if (!SafeReadMemory(rotations.m_pMemory, rotationData.data(), sizeof(Source2QuaternionStorage) * rotationData.size())) return false;
 
-	outBones.resize(static_cast<size_t>(parents.m_Size));
+	outBones.resize(positionData.size());
 	for (size_t i = 0; i < outBones.size(); ++i) {
 		QuaternionMatrix(rotationData[i], positionData[i], outBones[i]);
 	}
@@ -196,38 +230,90 @@ void CollectPermModelDataCandidates(void* rawHandle, std::vector<const void*>& o
 		outCandidates.push_back(candidate);
 	};
 
-	pushCandidate(rawHandle);
+	std::vector<const void*> frontier;
+	std::unordered_set<const void*> visited;
+
+	auto pushFrontier = [&pushCandidate, &frontier, &visited](const void* candidate) {
+		if (!candidate) return;
+		if (!visited.emplace(candidate).second) return;
+		pushCandidate(candidate);
+		frontier.push_back(candidate);
+	};
+
+	pushFrontier(rawHandle);
 
 	void* firstPointer = nullptr;
 	if (SafeReadObject(rawHandle, firstPointer)) {
-		pushCandidate(firstPointer);
+		pushFrontier(firstPointer);
 	}
 
-	const void* scanBases[] = { rawHandle, firstPointer };
-	for (const void* scanBase : scanBases) {
-		if (!scanBase) continue;
+	for (int depth = 0; depth < 3 && !frontier.empty(); ++depth) {
+		std::vector<const void*> nextFrontier;
 
-		const auto* bytes = reinterpret_cast<const unsigned char*>(scanBase);
-		for (size_t offset = 0; offset <= 0x80; offset += sizeof(void*)) {
-			void* nestedPointer = nullptr;
-			if (SafeReadObject(bytes + offset, nestedPointer)) {
+		for (const void* scanBase : frontier) {
+			const auto* bytes = reinterpret_cast<const unsigned char*>(scanBase);
+			const size_t scanLimit = 0x100;
+
+			for (size_t offset = 0; offset <= scanLimit; offset += sizeof(void*)) {
+				void* nestedPointer = nullptr;
+				if (!SafeReadObject(bytes + offset, nestedPointer) || !nestedPointer) continue;
+				if (!visited.emplace(nestedPointer).second) continue;
 				pushCandidate(nestedPointer);
+				nextFrontier.push_back(nestedPointer);
 			}
 		}
+
+		frontier = std::move(nextFrontier);
 	}
 }
 
 const void* ResolvePermModelData(void* rawHandle, const char* expectedModelName) {
+	if (!rawHandle) return nullptr;
+
+	auto cacheIt = g_ModelHandlePermModelDataCache.find(rawHandle);
+	if (cacheIt != g_ModelHandlePermModelDataCache.end()) {
+		if (!expectedModelName || !expectedModelName[0] || LooksLikePermModelData(cacheIt->second, expectedModelName)) {
+			return cacheIt->second;
+		}
+	}
+
 	std::vector<const void*> candidates;
 	CollectPermModelDataCandidates(rawHandle, candidates);
 
 	for (const void* candidate : candidates) {
 		if (LooksLikePermModelData(candidate, expectedModelName)) {
+			g_ModelHandlePermModelDataCache[rawHandle] = candidate;
 			return candidate;
 		}
 	}
 
+	if (expectedModelName && expectedModelName[0]) {
+		for (const void* candidate : candidates) {
+			if (LooksLikePermModelData(candidate, nullptr)) {
+				g_ModelHandlePermModelDataCache[rawHandle] = candidate;
+				return candidate;
+			}
+		}
+	}
+
 	return nullptr;
+}
+
+const void* ResolveEntityPermModelData(const CEntityInstance* entity) {
+	if (!entity || 0 == g_clientDllOffsets.CModelState.m_hModel) return nullptr;
+
+	auto pBodyComponent = *(u_char**)((u_char*)entity + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
+	if (!pBodyComponent) return nullptr;
+
+	auto pSkeletonInstance = pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
+	auto pModelState = pSkeletonInstance + g_clientDllOffsets.CSkeletonInstance.m_modelState;
+
+	void* rawModelHandle = nullptr;
+	if (!SafeReadObject(pModelState + g_clientDllOffsets.CModelState.m_hModel, rawModelHandle) || !rawModelHandle) {
+		return nullptr;
+	}
+
+	return ResolvePermModelData(rawModelHandle, entity->GetModelName());
 }
 
 } // namespace
@@ -481,20 +567,7 @@ const char* CEntityInstance::GetModelName() const {
 bool CEntityInstance::GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
 	outBones.clear();
 
-	if (0 == g_clientDllOffsets.CModelState.m_hModel) return false;
-
-	auto pBodyComponent = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
-	if (!pBodyComponent) return false;
-
-	auto pSkeletonInstance = pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
-	auto pModelState = pSkeletonInstance + g_clientDllOffsets.CSkeletonInstance.m_modelState;
-
-	void* rawModelHandle = nullptr;
-	if (!SafeReadObject(pModelState + g_clientDllOffsets.CModelState.m_hModel, rawModelHandle) || !rawModelHandle) {
-		return false;
-	}
-
-	const void* permModelData = ResolvePermModelData(rawModelHandle, GetModelName());
+	const void* permModelData = ResolveEntityPermModelData(this);
 	if (!permModelData) return false;
 
 	auto it = g_BindPoseBoneCache.find(permModelData);
@@ -508,6 +581,56 @@ bool CEntityInstance::GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outB
 
 	g_BindPoseBoneCache.emplace(permModelData, bones);
 	outBones = std::move(bones);
+	return !outBones.empty();
+}
+
+bool CEntityInstance::GetRagdollBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
+	outBones.clear();
+
+	if (0 == g_clientDllOffsets.C_RagdollProp.m_ragPos || 0 == g_clientDllOffsets.C_RagdollProp.m_ragAngles) {
+		return false;
+	}
+
+	const void* permModelData = ResolveEntityPermModelData(this);
+	if (!permModelData) return false;
+
+	std::vector<int16_t> skeletonParents;
+	if (!TryReadModelSkeletonParents(permModelData, skeletonParents)) return false;
+
+	Source2UtlVectorView<SOURCESDK::Vector> ragPositions;
+	Source2UtlVectorView<SOURCESDK::QAngle> ragAngles;
+	if (!SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragPos, ragPositions)) return false;
+	if (!IsPlausibleVector(ragPositions, static_cast<int>(skeletonParents.size()))) return false;
+	if (!SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragAngles, ragAngles)) return false;
+	if (!IsPlausibleVector(ragAngles, static_cast<int>(skeletonParents.size()))) return false;
+
+	std::vector<SOURCESDK::Vector> worldPositions(skeletonParents.size());
+	std::vector<SOURCESDK::QAngle> worldAngles(skeletonParents.size());
+	if (!SafeReadMemory(ragPositions.m_pMemory, worldPositions.data(), sizeof(SOURCESDK::Vector) * worldPositions.size())) return false;
+	if (!SafeReadMemory(ragAngles.m_pMemory, worldAngles.data(), sizeof(SOURCESDK::QAngle) * worldAngles.size())) return false;
+
+	std::vector<SOURCESDK::matrix3x4_t> worldBoneTransforms(skeletonParents.size());
+	for (size_t i = 0; i < worldBoneTransforms.size(); ++i) {
+		SOURCESDK::AngleMatrix(worldAngles[i], worldPositions[i], worldBoneTransforms[i]);
+	}
+
+	SOURCESDK::matrix3x4_t rootTransform;
+	const_cast<CEntityInstance*>(this)->GetAbsTransform(rootTransform);
+	SOURCESDK::matrix3x4_t rootInverse;
+	if (!InvertRigidMatrix(rootTransform, rootInverse)) return false;
+
+	outBones.resize(worldBoneTransforms.size());
+	for (size_t i = 0; i < outBones.size(); ++i) {
+		const int16_t parent = skeletonParents[i];
+		SOURCESDK::matrix3x4_t parentInverse;
+		if (0 <= parent && static_cast<size_t>(parent) < worldBoneTransforms.size()) {
+			if (!InvertRigidMatrix(worldBoneTransforms[parent], parentInverse)) return false;
+		} else {
+			parentInverse = rootInverse;
+		}
+		SOURCESDK::R_ConcatTransforms(parentInverse, worldBoneTransforms[i], outBones[i]);
+	}
+
 	return !outBones.empty();
 }
 

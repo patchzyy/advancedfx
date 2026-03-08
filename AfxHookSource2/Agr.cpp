@@ -600,7 +600,27 @@ void CAgrRecorder::RecordEntity(int entryIndex, CEntityInstance* entity, bool vi
     m_Record->WriteDictionary("baseanimating");
     {
         std::vector<SOURCESDK::matrix3x4_t> boneTransforms;
-        bool hasBones = entity->GetBindPoseBones(boneTransforms);
+        bool hasBones = false;
+        if (IsRagdollEntity(className, clientClassName)) {
+            hasBones = entity->GetRagdollBones(boneTransforms);
+        }
+        if (!hasBones) {
+            hasBones = entity->GetBindPoseBones(boneTransforms);
+        }
+        if (!hasBones && isViewModel) {
+            auto parentHandle = entity->GetParentHandle();
+            for (int depth = 0; depth < 6 && parentHandle.IsValid(); ++depth) {
+                auto* parentEntity = GetEntityByHandle(parentHandle);
+                if (!parentEntity || parentEntity == entity) break;
+                if (parentEntity->GetBindPoseBones(boneTransforms)) {
+                    hasBones = true;
+                    break;
+                }
+                const auto nextParentHandle = parentEntity->GetParentHandle();
+                if (!nextParentHandle.IsValid() || nextParentHandle.ToInt() == parentHandle.ToInt()) break;
+                parentHandle = nextParentHandle;
+            }
+        }
         if (!hasBones) {
             const bool useFallbackBone =
                 entity->IsPlayerPawn()
