@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "Agr.h"
 #include "ClientEntitySystem.h"
 #include "DeathMsg.h"
 #include "WrpConsole.h"
@@ -20,6 +21,216 @@
 
 #include <map>
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
+
+namespace {
+
+template <typename T>
+struct Source2UtlVectorView {
+	int m_Size = 0;
+	int m_Padding = 0;
+	T* m_pMemory = nullptr;
+	int m_nAllocationCount = 0;
+	int m_nGrowSize = 0;
+};
+
+struct Source2QuaternionStorage {
+	float x;
+	float y;
+	float z;
+	float w;
+};
+
+constexpr ptrdiff_t kPermModelDataModelSkeleton = 0x188;
+constexpr ptrdiff_t kModelSkeletonParents = 0x18;
+constexpr ptrdiff_t kModelSkeletonBonePosParent = 0x60;
+constexpr ptrdiff_t kModelSkeletonBoneRotParent = 0x78;
+constexpr int kMaxBindPoseBones = 512;
+
+std::unordered_map<const void*, std::vector<SOURCESDK::matrix3x4_t>> g_BindPoseBoneCache;
+
+bool SafeReadMemory(const void* src, void* dst, size_t size) {
+	if (!src || !dst || !size) return false;
+
+#ifdef _MSC_VER
+	__try {
+		memcpy(dst, src, size);
+		return true;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		return false;
+	}
+#else
+	memcpy(dst, src, size);
+	return true;
+#endif
+}
+
+template <typename T>
+bool SafeReadObject(const void* src, T& outValue) {
+	return SafeReadMemory(src, &outValue, sizeof(T));
+}
+
+const char* SafeReadCString(const char* value) {
+	if (!value) return nullptr;
+
+#ifdef _MSC_VER
+	__try {
+		for (size_t i = 0; i < 2048; ++i) {
+			unsigned char c = static_cast<unsigned char>(value[i]);
+			if (0 == c) return value;
+			if (!(std::isalnum(c) || c == '_' || c == '-' || c == '/' || c == '\\' || c == '.' || c == ':' || c == ' ')) {
+				return nullptr;
+			}
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		return nullptr;
+	}
+#else
+	for (size_t i = 0; i < 2048; ++i) {
+		unsigned char c = static_cast<unsigned char>(value[i]);
+		if (0 == c) return value;
+		if (!(std::isalnum(c) || c == '_' || c == '-' || c == '/' || c == '\\' || c == '.' || c == ':' || c == ' ')) {
+			return nullptr;
+		}
+	}
+#endif
+
+	return nullptr;
+}
+
+template <typename T>
+bool SafeReadVectorView(const void* src, Source2UtlVectorView<T>& outValue) {
+	return SafeReadMemory(src, &outValue, sizeof(outValue));
+}
+
+template <typename T>
+bool IsPlausibleVector(const Source2UtlVectorView<T>& vectorView, int expectedCount = -1) {
+	if (vectorView.m_Size <= 0 || vectorView.m_Size > kMaxBindPoseBones) return false;
+	if (!vectorView.m_pMemory) return false;
+	if (vectorView.m_nAllocationCount < vectorView.m_Size) return false;
+	if (-1 != expectedCount && vectorView.m_Size != expectedCount) return false;
+	return true;
+}
+
+void QuaternionMatrix(const Source2QuaternionStorage& q, const SOURCESDK::Vector& position, SOURCESDK::matrix3x4_t& outMatrix) {
+	const float xx = q.x * q.x;
+	const float yy = q.y * q.y;
+	const float zz = q.z * q.z;
+	const float xy = q.x * q.y;
+	const float xz = q.x * q.z;
+	const float yz = q.y * q.z;
+	const float wx = q.w * q.x;
+	const float wy = q.w * q.y;
+	const float wz = q.w * q.z;
+
+	outMatrix[0][0] = 1.0f - 2.0f * (yy + zz);
+	outMatrix[0][1] = 2.0f * (xy - wz);
+	outMatrix[0][2] = 2.0f * (xz + wy);
+	outMatrix[0][3] = position.x;
+
+	outMatrix[1][0] = 2.0f * (xy + wz);
+	outMatrix[1][1] = 1.0f - 2.0f * (xx + zz);
+	outMatrix[1][2] = 2.0f * (yz - wx);
+	outMatrix[1][3] = position.y;
+
+	outMatrix[2][0] = 2.0f * (xz - wy);
+	outMatrix[2][1] = 2.0f * (yz + wx);
+	outMatrix[2][2] = 1.0f - 2.0f * (xx + yy);
+	outMatrix[2][3] = position.z;
+}
+
+bool TryBuildBindPoseBones(const void* permModelData, std::vector<SOURCESDK::matrix3x4_t>& outBones) {
+	outBones.clear();
+	if (!permModelData) return false;
+
+	const auto* base = reinterpret_cast<const unsigned char*>(permModelData) + kPermModelDataModelSkeleton;
+
+	Source2UtlVectorView<int16_t> parents;
+	Source2UtlVectorView<SOURCESDK::Vector> positions;
+	Source2UtlVectorView<Source2QuaternionStorage> rotations;
+
+	if (!SafeReadVectorView(base + kModelSkeletonParents, parents)) return false;
+	if (!IsPlausibleVector(parents)) return false;
+	if (!SafeReadVectorView(base + kModelSkeletonBonePosParent, positions)) return false;
+	if (!IsPlausibleVector(positions, parents.m_Size)) return false;
+	if (!SafeReadVectorView(base + kModelSkeletonBoneRotParent, rotations)) return false;
+	if (!IsPlausibleVector(rotations, parents.m_Size)) return false;
+
+	std::vector<SOURCESDK::Vector> positionData(static_cast<size_t>(parents.m_Size));
+	std::vector<Source2QuaternionStorage> rotationData(static_cast<size_t>(parents.m_Size));
+	if (!SafeReadMemory(positions.m_pMemory, positionData.data(), sizeof(SOURCESDK::Vector) * positionData.size())) return false;
+	if (!SafeReadMemory(rotations.m_pMemory, rotationData.data(), sizeof(Source2QuaternionStorage) * rotationData.size())) return false;
+
+	outBones.resize(static_cast<size_t>(parents.m_Size));
+	for (size_t i = 0; i < outBones.size(); ++i) {
+		QuaternionMatrix(rotationData[i], positionData[i], outBones[i]);
+	}
+
+	return !outBones.empty();
+}
+
+bool LooksLikePermModelData(const void* candidate, const char* expectedModelName) {
+	if (!candidate) return false;
+
+	const char* resourceName = nullptr;
+	if (!SafeReadObject(candidate, resourceName)) return false;
+	resourceName = SafeReadCString(resourceName);
+
+	if (expectedModelName && expectedModelName[0] && resourceName && 0 != _stricmp(resourceName, expectedModelName)) {
+		return false;
+	}
+
+	std::vector<SOURCESDK::matrix3x4_t> bones;
+	if (!TryBuildBindPoseBones(candidate, bones)) return false;
+
+	return true;
+}
+
+void CollectPermModelDataCandidates(void* rawHandle, std::vector<const void*>& outCandidates) {
+	auto pushCandidate = [&outCandidates](const void* candidate) {
+		if (!candidate) return;
+		if (std::find(outCandidates.begin(), outCandidates.end(), candidate) != outCandidates.end()) return;
+		outCandidates.push_back(candidate);
+	};
+
+	pushCandidate(rawHandle);
+
+	void* firstPointer = nullptr;
+	if (SafeReadObject(rawHandle, firstPointer)) {
+		pushCandidate(firstPointer);
+	}
+
+	const void* scanBases[] = { rawHandle, firstPointer };
+	for (const void* scanBase : scanBases) {
+		if (!scanBase) continue;
+
+		const auto* bytes = reinterpret_cast<const unsigned char*>(scanBase);
+		for (size_t offset = 0; offset <= 0x80; offset += sizeof(void*)) {
+			void* nestedPointer = nullptr;
+			if (SafeReadObject(bytes + offset, nestedPointer)) {
+				pushCandidate(nestedPointer);
+			}
+		}
+	}
+}
+
+const void* ResolvePermModelData(void* rawHandle, const char* expectedModelName) {
+	std::vector<const void*> candidates;
+	CollectPermModelDataCandidates(rawHandle, candidates);
+
+	for (const void* candidate : candidates) {
+		if (LooksLikePermModelData(candidate, expectedModelName)) {
+			return candidate;
+		}
+	}
+
+	return nullptr;
+}
+
+} // namespace
 
 void ** g_pEntityList = nullptr;
 GetHighestEntityIndex_t  g_GetHighestEntityIndex = nullptr;
@@ -103,6 +314,55 @@ int CEntityInstance::GetTeam() {
     return *(int*)((u_char*)(this) + g_clientDllOffsets.C_BaseEntity.m_iTeamNum);
 }
 
+unsigned int CEntityInstance::GetEffects() const {
+	if (0 == g_clientDllOffsets.C_BaseEntity.m_fEffects) return 0;
+	return *(unsigned int*)((unsigned char*)this + g_clientDllOffsets.C_BaseEntity.m_fEffects);
+}
+
+bool CEntityInstance::IsDormant() const {
+	auto pSceneNode = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode);
+	if (!pSceneNode || 0 == g_clientDllOffsets.CGameSceneNode.m_bDormant) return false;
+	return 0 != *(unsigned char*)(pSceneNode + g_clientDllOffsets.CGameSceneNode.m_bDormant);
+}
+
+uint8_t CEntityInstance::GetRenderAlpha() const {
+	if (0 == g_clientDllOffsets.C_BaseModelEntity.m_clrRender) return 255;
+	auto color = reinterpret_cast<SOURCESDK::CS2::Color*>((unsigned char*)this + g_clientDllOffsets.C_BaseModelEntity.m_clrRender);
+	return (uint8_t)color->a();
+}
+
+uint8_t CEntityInstance::GetRenderMode() const {
+	if (0 == g_clientDllOffsets.C_BaseModelEntity.m_nRenderMode) return 0;
+	return *(uint8_t*)((unsigned char*)this + g_clientDllOffsets.C_BaseModelEntity.m_nRenderMode);
+}
+
+SOURCESDK::CS2::CBaseHandle CEntityInstance::GetOwnerHandle() {
+	return SOURCESDK::CS2::CEntityHandle::CEntityHandle(*(unsigned int*)((unsigned char*)this + g_clientDllOffsets.C_BaseEntity.m_hOwnerEntity));
+}
+
+SOURCESDK::CS2::CBaseHandle CEntityInstance::GetPrevOwnerHandle() {
+	if (0 == g_clientDllOffsets.C_BasePlayerWeapon.m_hPrevOwner) return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+	return SOURCESDK::CS2::CEntityHandle::CEntityHandle(*(unsigned int*)((unsigned char*)this + g_clientDllOffsets.C_BasePlayerWeapon.m_hPrevOwner));
+}
+
+SOURCESDK::CS2::CBaseHandle CEntityInstance::GetParentHandle() {
+	auto pSceneNode = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode);
+	if (!pSceneNode) return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+
+	auto pParentNode = *(u_char**)(pSceneNode + g_clientDllOffsets.CGameSceneNode.m_pParent);
+	if (!pParentNode) return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+
+	auto pParentOwner = *(u_char**)(pParentNode + g_clientDllOffsets.CGameSceneNode.m_pOwner);
+	if (!pParentOwner) return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+
+	return reinterpret_cast<CEntityInstance*>(pParentOwner)->GetHandle();
+}
+
+SOURCESDK::CS2::CBaseHandle CEntityInstance::GetViewmodelAttachmentHandle() {
+	if (0 == g_clientDllOffsets.C_EconEntity.m_hViewmodelAttachment) return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+	return SOURCESDK::CS2::CEntityHandle::CEntityHandle(*(unsigned int*)((unsigned char*)this + g_clientDllOffsets.C_EconEntity.m_hViewmodelAttachment));
+}
+
 
 /**
  * @remarks FLOAT_MAX if invalid
@@ -116,6 +376,25 @@ void CEntityInstance::GetOrigin(float & x, float & y, float & z) {
 	z =  vector[2];
 }
 
+void CEntityInstance::GetAbsAngles(float& pitch, float& yaw, float& roll) {
+    auto ptr = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode);
+	auto angles = (float*)(ptr + g_clientDllOffsets.CGameSceneNode.m_angAbsRotation);
+	pitch = angles[0];
+	yaw = angles[1];
+	roll = angles[2];
+}
+
+void CEntityInstance::GetAbsTransform(SOURCESDK::matrix3x4_t& outMatrix) {
+    float x, y, z;
+    float pitch, yaw, roll;
+    GetOrigin(x, y, z);
+    GetAbsAngles(pitch, yaw, roll);
+
+    SOURCESDK::QAngle angles = { pitch, yaw, roll };
+    SOURCESDK::Vector origin = { x, y, z };
+    SOURCESDK::AngleMatrix(angles, origin, outMatrix);
+}
+
 void CEntityInstance::GetRenderEyeOrigin(float outOrigin[3]) {
 	// GetRenderEyeAngles vtable offset minus 2
 	((void (__fastcall *)(void *,float outOrigin[3])) (*(void***)this)[166]) (this,outOrigin);
@@ -124,6 +403,18 @@ void CEntityInstance::GetRenderEyeOrigin(float outOrigin[3]) {
 void CEntityInstance::GetRenderEyeAngles(float outAngles[3]) {
 	// See cl_track_render_eye_angles. Near "Render eye angles: %.7f, %.7f, %.7f\n".
 	((void (__fastcall *)(void *,float outAngles[3])) (*(void***)this)[167]) (this,outAngles);
+}
+
+unsigned int CEntityInstance::GetPlayerFov() {
+	if (!IsPlayerPawn() || 0 == g_clientDllOffsets.CCSPlayerBase_CameraServices.m_iFOV) return 0;
+	void* pCameraServices = *(void**)((unsigned char*)this + g_clientDllOffsets.C_BasePlayerPawn.m_pCameraServices);
+	if (!pCameraServices) return 0;
+	return *(unsigned int*)((unsigned char*)pCameraServices + g_clientDllOffsets.CCSPlayerBase_CameraServices.m_iFOV);
+}
+
+float CEntityInstance::GetViewmodelFov() {
+	if (!IsPlayerPawn() || 0 == g_clientDllOffsets.C_CSPlayerPawn.m_flViewmodelFOV) return 0.0f;
+	return *(float*)((unsigned char*)this + g_clientDllOffsets.C_CSPlayerPawn.m_flViewmodelFOV);
 }
 
 SOURCESDK::CS2::CBaseHandle CEntityInstance::GetViewEntityHandle() {
@@ -176,6 +467,48 @@ SOURCESDK::CS2::CBaseHandle CEntityInstance::GetHandle() {
 	}
 
 	return SOURCESDK::CS2::CEntityHandle::CEntityHandle();
+}
+
+const char* CEntityInstance::GetModelName() const {
+    auto pBodyComponent = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
+    if (!pBodyComponent) return nullptr;
+
+    auto pSkeletonInstance = pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
+    auto pModelState = pSkeletonInstance + g_clientDllOffsets.CSkeletonInstance.m_modelState;
+    return *(const char**)(pModelState + g_clientDllOffsets.CModelState.m_ModelName);
+}
+
+bool CEntityInstance::GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
+	outBones.clear();
+
+	if (0 == g_clientDllOffsets.CModelState.m_hModel) return false;
+
+	auto pBodyComponent = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
+	if (!pBodyComponent) return false;
+
+	auto pSkeletonInstance = pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
+	auto pModelState = pSkeletonInstance + g_clientDllOffsets.CSkeletonInstance.m_modelState;
+
+	void* rawModelHandle = nullptr;
+	if (!SafeReadObject(pModelState + g_clientDllOffsets.CModelState.m_hModel, rawModelHandle) || !rawModelHandle) {
+		return false;
+	}
+
+	const void* permModelData = ResolvePermModelData(rawModelHandle, GetModelName());
+	if (!permModelData) return false;
+
+	auto it = g_BindPoseBoneCache.find(permModelData);
+	if (it != g_BindPoseBoneCache.end()) {
+		outBones = it->second;
+		return !outBones.empty();
+	}
+
+	std::vector<SOURCESDK::matrix3x4_t> bones;
+	if (!TryBuildBindPoseBones(permModelData, bones)) return false;
+
+	g_BindPoseBoneCache.emplace(permModelData, bones);
+	outBones = std::move(bones);
+	return !outBones.empty();
 }
 
 typedef	void (__fastcall * org_LookupAttachment_t)(void* This, uint8_t& outIdx, const char* attachmentName);
@@ -299,6 +632,8 @@ void* __fastcall New_OnRemoveEntity(void* This, CEntityInstance* pInstance, SOUR
         AfxHookSource2Rs_Engine_OnRemoveEntity(pRef,handle);
         pRef->Release();
     }
+
+    CAgrRecorder::Get().OnEntityDeleted((int)handle);
 
     CAfxEntityInstanceRef::Invalidate(pInstance);
 
@@ -639,6 +974,11 @@ ClientDll_GetSplitScreenPlayer_t g_ClientDll_GetSplitScreenPlayer = nullptr;
 bool Hook_GetSplitScreenPlayer( void* pAddr) {
     g_ClientDll_GetSplitScreenPlayer = (ClientDll_GetSplitScreenPlayer_t)pAddr;
     return true;
+}
+
+CEntityInstance* GetSplitScreenPlayer(int index) {
+	if (!g_ClientDll_GetSplitScreenPlayer) return nullptr;
+	return g_ClientDll_GetSplitScreenPlayer(index);
 }
 
 extern "C" void * afx_hook_source2_get_entity_ref_from_split_screen_player(int index) {

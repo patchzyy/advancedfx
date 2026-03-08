@@ -361,6 +361,24 @@ float GetLastCameraFov() {
 	return (float)g_MirvInputEx.LastCameraFov;
 }
 
+extern int g_iWidth;
+extern int g_iHeight;
+
+void GetLastCameraData(float outOrigin[3], float outAngles[3], float& outFov) {
+	outOrigin[0] = (float)g_MirvInputEx.LastCameraOrigin[0];
+	outOrigin[1] = (float)g_MirvInputEx.LastCameraOrigin[1];
+	outOrigin[2] = (float)g_MirvInputEx.LastCameraOrigin[2];
+	outAngles[0] = (float)g_MirvInputEx.LastCameraAngles[0];
+	outAngles[1] = (float)g_MirvInputEx.LastCameraAngles[1];
+	outAngles[2] = (float)g_MirvInputEx.LastCameraAngles[2];
+	outFov = (float)g_MirvInputEx.LastCameraFov;
+}
+
+void GetLastCameraSize(int& outWidth, int& outHeight) {
+	outWidth = g_iWidth;
+	outHeight = g_iHeight;
+}
+
 CON_COMMAND(mirv_input, "Input mode configuration.")
 {
 	g_MirvInputEx.m_MirvInput->ConCommand(args);

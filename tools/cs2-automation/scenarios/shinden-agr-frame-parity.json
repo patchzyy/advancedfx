@@ -1,0 +1,215 @@
+{
+  "name": "shinden-agr-frame-parity",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 300,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2002,
+      "command": "mirv_input camera; mirv_input position 1000 2000 3000; mirv_input angles 11 22 33; mirv_input fov 90; mirv_agr recordCamera 1; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2003,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/camera-proof.agr\""
+    },
+    {
+      "tick": 2012,
+      "command": "mirv_agr stop; mirv_input end"
+    },
+    {
+      "tick": 2014,
+      "command": "echo AIAUTO:AGR:CAMERA_PROOF"
+    },
+    {
+      "tick": 2020,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2021,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/hidden-proof.agr\""
+    },
+    {
+      "tick": 2027,
+      "command": "mirv_agr recordPlayers 0"
+    },
+    {
+      "tick": 2034,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2036,
+      "command": "echo AIAUTO:AGR:HIDDEN_PROOF"
+    },
+    {
+      "tick": 2040,
+      "command": "demo_gototick 2080"
+    },
+    {
+      "tick": 2081,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 1; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2082,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/deleted-proof.agr\""
+    },
+    {
+      "tick": 2088,
+      "command": "demo_gototick 2600"
+    },
+    {
+      "tick": 2601,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2603,
+      "command": "echo AIAUTO:AGR:DELETED_PROOF"
+    },
+    {
+      "tick": 2610,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-frame-parity",
+    "AIAUTO:SCENARIO:shinden-agr-frame-parity",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "AIAUTO:AGR:CAMERA_PROOF",
+    "AIAUTO:AGR:HIDDEN_PROOF",
+    "AIAUTO:AGR:DELETED_PROOF"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\camera-proof.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\hidden-proof.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\deleted-proof.agr",
+      "minBytes": 64
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "artifacts\\camera-proof.agr",
+      "expectations": {
+        "version": 6,
+        "entityCount": 0,
+        "frameCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "mainCameraCount": {
+          "operator": "eq",
+          "valueFromProperty": "frameCount"
+        },
+        "firstMainCameraPosX": {
+          "operator": "approx",
+          "value": 1000,
+          "tolerance": 0.01
+        },
+        "firstMainCameraPosY": {
+          "operator": "approx",
+          "value": 2000,
+          "tolerance": 0.01
+        },
+        "firstMainCameraPosZ": {
+          "operator": "approx",
+          "value": 3000,
+          "tolerance": 0.01
+        },
+        "firstMainCameraAng0": {
+          "operator": "approx",
+          "value": 11,
+          "tolerance": 0.01
+        },
+        "firstMainCameraAng1": {
+          "operator": "approx",
+          "value": 22,
+          "tolerance": 0.01
+        },
+        "firstMainCameraAng2": {
+          "operator": "approx",
+          "value": 33,
+          "tolerance": 0.01
+        },
+        "firstMainCameraFov": {
+          "operator": "approx",
+          "value": 106.303154,
+          "tolerance": 0.02
+        }
+      }
+    },
+    {
+      "path": "artifacts\\hidden-proof.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "entityCount": {
+          "operator": "gt",
+          "valueFromProperty": "uniqueEntityHandleCount"
+        },
+        "uniqueEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "hiddenCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueHiddenHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "mainCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\deleted-proof.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "deletedCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueDeletedHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "mainCameraCount": 0
+      }
+    }
+  ]
+}

@@ -26,7 +26,7 @@ public:
 	virtual bool EnableRecordingMode_get();
 
 	virtual int GetAgrVersion() override {
-		return 6;
+		return advancedfx::kAfxGameRecordFormatVersionCurrent;
 	}
 
 	virtual void StartRecording(wchar_t const * fileName);

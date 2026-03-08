@@ -1,0 +1,303 @@
+{
+  "name": "shinden-agr-entity-parity",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 300,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2020,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2021,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/players-parity.agr\""
+    },
+    {
+      "tick": 2028,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2030,
+      "command": "echo AIAUTO:AGR:PLAYERS_PARITY"
+    },
+    {
+      "tick": 2040,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 1; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2041,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/weapons-world.agr\""
+    },
+    {
+      "tick": 2048,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2050,
+      "command": "echo AIAUTO:AGR:WEAPONS_WORLD"
+    },
+    {
+      "tick": 2060,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 1; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2061,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/projectiles-parity.agr\""
+    },
+    {
+      "tick": 2068,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2070,
+      "command": "echo AIAUTO:AGR:PROJECTILES_PARITY"
+    },
+    {
+      "tick": 2080,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels -1; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2081,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/viewmodels-safe.agr\""
+    },
+    {
+      "tick": 2088,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2090,
+      "command": "echo AIAUTO:AGR:VIEWMODELS_SAFE"
+    },
+    {
+      "tick": 2100,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 1; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 1"
+    },
+    {
+      "tick": 2101,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/weapons-invisible.agr\""
+    },
+    {
+      "tick": 2108,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2110,
+      "command": "echo AIAUTO:AGR:WEAPONS_INVISIBLE"
+    },
+    {
+      "tick": 2120,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-entity-parity",
+    "AIAUTO:SCENARIO:shinden-agr-entity-parity",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "AIAUTO:AGR:PLAYERS_PARITY",
+    "AIAUTO:AGR:WEAPONS_WORLD",
+    "AIAUTO:AGR:PROJECTILES_PARITY",
+    "AIAUTO:AGR:VIEWMODELS_SAFE",
+    "AIAUTO:AGR:WEAPONS_INVISIBLE"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\players-parity.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\weapons-world.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\projectiles-parity.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\viewmodels-safe.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\weapons-invisible.agr",
+      "minBytes": 64
+    }
+  ],
+  "artifactStringChecks": [
+    {
+      "path": "artifacts\\players-parity.agr",
+      "requiredPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ],
+      "forbiddenPatterns": [
+        "camera",
+        "weapons/models/"
+      ]
+    },
+    {
+      "path": "artifacts\\weapons-world.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\projectiles-parity.agr",
+      "requiredPatterns": [
+        "smokegrenade"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\viewmodels-safe.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\weapons-invisible.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "artifacts\\players-parity.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "boneEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "boneCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": 0,
+        "viewModelEntityCount": 0,
+        "invisibleEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\weapons-world.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueEntityHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "invisibleEntityCount": 0,
+        "viewModelEntityCount": 0,
+        "playerCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\projectiles-parity.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0,
+        "playerCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\viewmodels-safe.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
+        },
+        "boneEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "invisibleEntityCount": 0,
+        "playerCameraCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\weapons-invisible.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "invisibleEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0,
+        "playerCameraCount": 0
+      }
+    }
+  ],
+  "artifactAgrComparisons": [
+    {
+      "leftPath": "artifacts\\weapons-invisible.agr",
+      "leftProperty": "uniqueEntityHandleCount",
+      "operator": "gt",
+      "rightPath": "artifacts\\weapons-world.agr",
+      "rightProperty": "uniqueEntityHandleCount"
+    },
+    {
+      "leftPath": "artifacts\\viewmodels-safe.agr",
+      "leftProperty": "uniqueEntityHandleCount",
+      "operator": "gt",
+      "rightPath": "artifacts\\weapons-world.agr",
+      "rightProperty": "uniqueEntityHandleCount"
+    },
+    {
+      "leftPath": "artifacts\\players-parity.agr",
+      "leftProperty": "boneCount",
+      "operator": "ge",
+      "rightPath": "artifacts\\players-parity.agr",
+      "rightProperty": "boneEntityCount"
+    }
+  ]
+}

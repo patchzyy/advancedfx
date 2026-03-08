@@ -40,7 +40,7 @@ public:
 	}
 
 	virtual int GetAgrVersion() override {
-		return 6;
+		return advancedfx::kAfxGameRecordFormatVersionCurrent;
 	}
 
 

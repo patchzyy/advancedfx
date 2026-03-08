@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <Windows.h>
 #include "../deps/release/prop/cs2/sdk_src/public/entityhandle.h"
@@ -36,15 +37,32 @@ public:
     unsigned int GetHealth();
 
     int GetTeam();
+    unsigned int GetEffects() const;
+    bool IsDormant() const;
+    uint8_t GetRenderAlpha() const;
+    uint8_t GetRenderMode() const;
+
+    SOURCESDK::CS2::CBaseHandle GetOwnerHandle();
+    SOURCESDK::CS2::CBaseHandle GetPrevOwnerHandle();
+    SOURCESDK::CS2::CBaseHandle GetParentHandle();
+    SOURCESDK::CS2::CBaseHandle GetViewmodelAttachmentHandle();
 	
     /**
      * @remarks FLOAT_MAX if invalid
      */
     void GetOrigin(float & x, float & y, float & z);
 
+    void GetAbsAngles(float& pitch, float& yaw, float& roll);
+
+    void GetAbsTransform(SOURCESDK::matrix3x4_t& outMatrix);
+
     void GetRenderEyeOrigin(float outOrigin[3]);
 
-    void GetRenderEyeAngles(float outAngles[3]);
+	void GetRenderEyeAngles(float outAngles[3]);
+
+    unsigned int GetPlayerFov();
+
+    float GetViewmodelFov();
 
     SOURCESDK::CS2::CBaseHandle GetViewEntityHandle();
 
@@ -61,6 +79,9 @@ public:
 
     SOURCESDK::CS2::CBaseHandle GetHandle();
 
+    const char* GetModelName() const;
+    bool GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
+
     uint8_t LookupAttachment(const char* attachmentName);
 	bool GetAttachment(uint8_t idx, SOURCESDK::Vector &origin, SOURCESDK::Quaternion &angles);
 };
@@ -74,3 +95,4 @@ extern GetEntityFromIndex_t g_GetEntityFromIndex;
 extern void ** g_pEntityList;
 
 int GetHighestEntityIndex();
+CEntityInstance* GetSplitScreenPlayer(int index);

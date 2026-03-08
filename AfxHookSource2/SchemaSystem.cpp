@@ -89,14 +89,24 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_CSGameRules.m_gamePhase, "client.dll", "C_CSGameRules", "m_gamePhase");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_CSGameRules.m_nOvertimePlaying, "client.dll", "C_CSGameRules", "m_nOvertimePlaying");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CEntityInstance.m_pEntity, "client.dll", "CEntityInstance", "m_pEntity");
+	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_CBodyComponent, "client.dll", "C_BaseEntity", "m_CBodyComponent");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode, "client.dll", "C_BaseEntity", "m_pGameSceneNode");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_iHealth, "client.dll", "C_BaseEntity", "m_iHealth");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_hOwnerEntity, "client.dll", "C_BaseEntity", "m_hOwnerEntity");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_iTeamNum, "client.dll", "C_BaseEntity", "m_iTeamNum");
+	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseEntity.m_fEffects, "client.dll", "C_BaseEntity", "m_fEffects");
+	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseModelEntity.m_nRenderMode, "client.dll", "C_BaseModelEntity", "m_nRenderMode");
+	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseModelEntity.m_clrRender, "client.dll", "C_BaseModelEntity", "m_clrRender");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseModelEntity.m_Glow, "client.dll", "C_BaseModelEntity", "m_Glow");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_nodeToWorld, "client.dll", "CGameSceneNode", "m_nodeToWorld");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_pOwner, "client.dll", "CGameSceneNode", "m_pOwner");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_pParent, "client.dll", "CGameSceneNode", "m_pParent");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_angAbsRotation, "client.dll", "CGameSceneNode", "m_angAbsRotation");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_vecAbsOrigin, "client.dll", "CGameSceneNode", "m_vecAbsOrigin");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CGameSceneNode.m_bDormant, "client.dll", "CGameSceneNode", "m_bDormant");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance, "client.dll", "CBodyComponentSkeletonInstance", "m_skeletonInstance");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CSkeletonInstance.m_modelState, "client.dll", "CSkeletonInstance", "m_modelState");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CModelState.m_ModelName, "client.dll", "CModelState", "m_ModelName");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_iszPlayerName, "client.dll", "CBasePlayerController", "m_iszPlayerName");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_steamID, "client.dll", "CBasePlayerController", "m_steamID");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_hPawn, "client.dll", "CBasePlayerController", "m_hPawn");
@@ -116,6 +126,12 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_EnvSky.m_hSkyMaterial, "client.dll", "C_EnvSky", "m_hSkyMaterial");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_EnvSky.m_vTintColor, "client.dll", "C_EnvSky", "m_vTintColor");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_EnvSky.m_flBrightnessScale, "client.dll", "C_EnvSky", "m_flBrightnessScale");
+
+	getOffset(&g_clientDllOffsets.C_EconEntity.m_hViewmodelAttachment, "client.dll", "C_EconEntity", "m_hViewmodelAttachment");
+	getOffset(&g_clientDllOffsets.C_BasePlayerWeapon.m_hPrevOwner, "client.dll", "C_BasePlayerWeapon", "m_hPrevOwner");
+	getOffset(&g_clientDllOffsets.CModelState.m_hModel, "client.dll", "CModelState", "m_hModel");
+	getOffset(&g_clientDllOffsets.CCSPlayerBase_CameraServices.m_iFOV, "client.dll", "CCSPlayerBase_CameraServices", "m_iFOV");
+	getOffset(&g_clientDllOffsets.C_CSPlayerPawn.m_flViewmodelFOV, "client.dll", "C_CSPlayerPawn", "m_flViewmodelFOV");
 
 	if (!bOk) ErrorBox(MkErrStr(__FILE__, __LINE__));	
 }

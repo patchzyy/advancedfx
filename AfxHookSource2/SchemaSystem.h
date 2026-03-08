@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <windows.h>
 
+#include "../deps/release/prop/cs2/sdk_src/public/Color.h"
+
 void HookSchemaSystem(HMODULE schemaSystemDll);
 
 // these resolved in runtime
@@ -23,21 +25,49 @@ struct ClientDllOffsets_t {
 	} CEntityInstance;
 
 	struct C_BaseEntity {
+		ptrdiff_t m_CBodyComponent = 0; // CBodyComponent*
 		ptrdiff_t m_pGameSceneNode = 0; // CGameSceneNode*
 		ptrdiff_t m_iHealth = 0; // int32
 		ptrdiff_t m_iTeamNum = 0; // uint8
 		ptrdiff_t m_hOwnerEntity = 0; // CHandle<C_BaseEntity>
+		ptrdiff_t m_fEffects = 0; // uint32
 	} C_BaseEntity;
 
+	struct C_EconEntity {
+		ptrdiff_t m_hViewmodelAttachment = 0; // CHandle<CBaseAnimGraph>
+	} C_EconEntity;
+
+	struct C_BasePlayerWeapon {
+		ptrdiff_t m_hPrevOwner = 0; // CHandle<C_CSPlayerPawn>
+	} C_BasePlayerWeapon;
+
 	struct C_BaseModelEntity {
+		ptrdiff_t m_nRenderMode = 0; // RenderMode_t
+		ptrdiff_t m_clrRender = 0; // Color
 		ptrdiff_t m_Glow = 0; // CGlowProperty
 	} C_BaseModelEntity;
 
 	struct CGameSceneNode {
+		ptrdiff_t m_nodeToWorld = 0; // CTransformWS
 	    ptrdiff_t m_pOwner = 0; // CEntityInstance*
         ptrdiff_t m_pParent = 0; // CGameSceneNode*
+		ptrdiff_t m_angAbsRotation = 0; // QAngle
         ptrdiff_t m_vecAbsOrigin = 0; // VectorWS
+		ptrdiff_t m_bDormant = 0; // bool
 	} CGameSceneNode;
+
+	struct CBodyComponentSkeletonInstance {
+		ptrdiff_t m_skeletonInstance = 0; // CSkeletonInstance
+	} CBodyComponentSkeletonInstance;
+
+	struct CSkeletonInstance {
+		ptrdiff_t m_modelState = 0; // CModelState
+	} CSkeletonInstance;
+
+	struct CModelState {
+		ptrdiff_t m_hModel = 0; // CStrongHandle<InfoForResourceTypeCModel>
+		ptrdiff_t m_ModelName = 0; // CUtlSymbolLarge
+	} CModelState;
 
 	struct C_BaseCSGrenadeProjectile {
 		ptrdiff_t m_bCanCreateGrenadeTrail = 0; // bool
@@ -70,6 +100,14 @@ struct ClientDllOffsets_t {
 	struct CPlayer_CameraServices {
 		ptrdiff_t m_hViewEntity = 0; // CHandle< CBaseEntity >
 	} CPlayer_CameraServices;
+
+	struct CCSPlayerBase_CameraServices {
+		ptrdiff_t m_iFOV = 0; // uint32
+	} CCSPlayerBase_CameraServices;
+
+	struct C_CSPlayerPawn {
+		ptrdiff_t m_flViewmodelFOV = 0; // float32
+	} C_CSPlayerPawn;
 
 	struct CPlayer_WeaponServices {
 		ptrdiff_t m_hActiveWeapon = 0; // CHandle< CBasePlayerWeapon >

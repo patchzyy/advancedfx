@@ -476,6 +476,327 @@ function Resolve-ArtifactPath {
     return Get-FullPath -Path (Join-Path $OutputDir $ArtifactPath)
 }
 
+function Get-PrintableStrings {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [int]$MinLength = 4
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $builder = New-Object System.Text.StringBuilder
+    $results = New-Object System.Collections.Generic.List[string]
+
+    foreach ($value in $bytes) {
+        if ($value -ge 32 -and $value -le 126) {
+            [void]$builder.Append([char]$value)
+            continue
+        }
+
+        if ($builder.Length -ge $MinLength) {
+            $results.Add($builder.ToString())
+        }
+
+        [void]$builder.Clear()
+    }
+
+    if ($builder.Length -ge $MinLength) {
+        $results.Add($builder.ToString())
+    }
+
+    return $results.ToArray()
+}
+
+function Read-NullTerminatedString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.BinaryReader]$Reader
+    )
+
+    $bytes = New-Object System.Collections.Generic.List[byte]
+    while ($Reader.BaseStream.Position -lt $Reader.BaseStream.Length) {
+        $value = $Reader.ReadByte()
+        if (0 -eq $value) {
+            break
+        }
+
+        $bytes.Add($value)
+    }
+
+    return [System.Text.Encoding]::UTF8.GetString($bytes.ToArray())
+}
+
+function Read-AgrDictionaryToken {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.BinaryReader]$Reader,
+
+        [AllowEmptyCollection()]
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.List[string]]$Dictionary
+    )
+
+    $index = $Reader.ReadInt32()
+    if ($index -eq -1) {
+        $value = Read-NullTerminatedString -Reader $Reader
+        $Dictionary.Add($value)
+        return $value
+    }
+
+    if ($index -lt 0 -or $index -ge $Dictionary.Count) {
+        throw "AGR dictionary index out of range: $index"
+    }
+
+    return $Dictionary[$index]
+}
+
+function Test-AgrNumericExpectation {
+    param(
+        [Parameter(Mandatory = $true)]
+        [double]$Actual,
+
+        [Parameter(Mandatory = $true)]
+        $Expected,
+
+        $Summary = $null
+    )
+
+    if ($Expected -is [System.Management.Automation.PSCustomObject] -or $Expected -is [hashtable]) {
+        $operator = [string](Get-ScenarioPropertyValue -Scenario $Expected -Name "operator" -Default "eq")
+        $valueFromProperty = [string](Get-ScenarioPropertyValue -Scenario $Expected -Name "valueFromProperty" -Default "")
+        $tolerance = [double](Get-ScenarioPropertyValue -Scenario $Expected -Name "tolerance" -Default 0)
+        $value = if ($valueFromProperty -and $Summary) {
+            [double]$Summary.$valueFromProperty
+        }
+        else {
+            [double](Get-ScenarioPropertyValue -Scenario $Expected -Name "value" -Default 0)
+        }
+
+        switch ($operator) {
+            "gt" { return $Actual -gt $value }
+            "ge" { return $Actual -ge $value }
+            "lt" { return $Actual -lt $value }
+            "le" { return $Actual -le $value }
+            "ne" { return $Actual -ne $value }
+            "approx" { return [math]::Abs($Actual - $value) -le $tolerance }
+            default { return $Actual -eq $value }
+        }
+    }
+
+    return $Actual -eq [double]$Expected
+}
+
+function Read-AgrFileSummary {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+    try {
+        $reader = New-Object System.IO.BinaryReader($stream, [System.Text.Encoding]::UTF8, $true)
+        try {
+            $signature = Read-NullTerminatedString -Reader $reader
+            if ($signature -ne "afxGameRecord") {
+                throw "Unexpected AGR signature '$signature'."
+            }
+
+            $version = $reader.ReadInt32()
+            $dictionary = New-Object 'System.Collections.Generic.List[string]'
+            $entityHandles = New-Object System.Collections.Generic.HashSet[int]
+            $hiddenHandles = New-Object System.Collections.Generic.HashSet[int]
+            $deletedHandles = New-Object System.Collections.Generic.HashSet[int]
+            $summary = [ordered]@{
+                version = $version
+                frameCount = 0
+                entityCount = 0
+                uniqueEntityHandleCount = 0
+                visibleEntityCount = 0
+                invisibleEntityCount = 0
+                viewModelEntityCount = 0
+                playerCameraCount = 0
+                mainCameraCount = 0
+                deletedCount = 0
+                uniqueDeletedHandleCount = 0
+                hiddenCount = 0
+                uniqueHiddenHandleCount = 0
+                boneEntityCount = 0
+                boneCount = 0
+                firstMainCameraPosX = $null
+                firstMainCameraPosY = $null
+                firstMainCameraPosZ = $null
+                firstMainCameraAng0 = $null
+                firstMainCameraAng1 = $null
+                firstMainCameraAng2 = $null
+                firstMainCameraFov = $null
+                lastMainCameraPosX = $null
+                lastMainCameraPosY = $null
+                lastMainCameraPosZ = $null
+                lastMainCameraAng0 = $null
+                lastMainCameraAng1 = $null
+                lastMainCameraAng2 = $null
+                lastMainCameraFov = $null
+                models = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+            }
+
+            while ($reader.BaseStream.Position -lt $reader.BaseStream.Length) {
+                $token = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
+                switch ($token) {
+                    "afxFrame" {
+                        [void]$reader.ReadSingle()
+                        [void]$reader.ReadInt32()
+                        $summary.frameCount++
+                    }
+                    "afxFrameEnd" {
+                    }
+                    "afxHidden" {
+                        $hiddenCount = $reader.ReadInt32()
+                        $summary.hiddenCount += $hiddenCount
+                        for ($i = 0; $i -lt $hiddenCount; ++$i) {
+                            $hiddenHandle = $reader.ReadInt32()
+                            [void]$hiddenHandles.Add($hiddenHandle)
+                        }
+                    }
+                    "afxCam" {
+                        $camPosX = $reader.ReadSingle()
+                        $camPosY = $reader.ReadSingle()
+                        $camPosZ = $reader.ReadSingle()
+                        $camAng0 = $reader.ReadSingle()
+                        $camAng1 = $reader.ReadSingle()
+                        $camAng2 = $reader.ReadSingle()
+                        $camFov = $reader.ReadSingle()
+                        if ($summary.mainCameraCount -eq 0) {
+                            $summary.firstMainCameraPosX = $camPosX
+                            $summary.firstMainCameraPosY = $camPosY
+                            $summary.firstMainCameraPosZ = $camPosZ
+                            $summary.firstMainCameraAng0 = $camAng0
+                            $summary.firstMainCameraAng1 = $camAng1
+                            $summary.firstMainCameraAng2 = $camAng2
+                            $summary.firstMainCameraFov = $camFov
+                        }
+                        $summary.lastMainCameraPosX = $camPosX
+                        $summary.lastMainCameraPosY = $camPosY
+                        $summary.lastMainCameraPosZ = $camPosZ
+                        $summary.lastMainCameraAng0 = $camAng0
+                        $summary.lastMainCameraAng1 = $camAng1
+                        $summary.lastMainCameraAng2 = $camAng2
+                        $summary.lastMainCameraFov = $camFov
+                        $summary.mainCameraCount++
+                    }
+                    "deleted" {
+                        $deletedHandle = $reader.ReadInt32()
+                        [void]$deletedHandles.Add($deletedHandle)
+                        $summary.deletedCount++
+                    }
+                    "entity_state" {
+                        $entityHandle = $reader.ReadInt32()
+                        [void]$entityHandles.Add($entityHandle)
+                        $entityVisible = $false
+                        $isViewModel = $false
+
+                        while ($true) {
+                            $entityToken = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
+                            if ($entityToken -eq "/") {
+                                $isViewModel = $reader.ReadBoolean()
+                                break
+                            }
+
+                            switch ($entityToken) {
+                                "baseentity" {
+                                    $modelName = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
+                                    if ($modelName) {
+                                        [void]$summary.models.Add($modelName)
+                                    }
+                                    $entityVisible = $reader.ReadBoolean()
+                                    for ($i = 0; $i -lt 12; ++$i) {
+                                        [void]$reader.ReadSingle()
+                                    }
+                                }
+                                "baseanimating" {
+                                    $hasBones = $reader.ReadBoolean()
+                                    if ($hasBones) {
+                                        $boneCount = $reader.ReadInt32()
+                                        $summary.boneEntityCount++
+                                        $summary.boneCount += $boneCount
+                                        for ($boneIndex = 0; $boneIndex -lt $boneCount; ++$boneIndex) {
+                                            for ($valueIndex = 0; $valueIndex -lt 12; ++$valueIndex) {
+                                                [void]$reader.ReadSingle()
+                                            }
+                                        }
+                                    }
+                                }
+                                "camera" {
+                                    [void]$reader.ReadBoolean()
+                                    for ($i = 0; $i -lt 7; ++$i) {
+                                        [void]$reader.ReadSingle()
+                                    }
+                                    $summary.playerCameraCount++
+                                }
+                                default {
+                                    throw "Unsupported AGR entity token '$entityToken' in '$Path'."
+                                }
+                            }
+                        }
+
+                        $summary.entityCount++
+                        if ($entityVisible) {
+                            $summary.visibleEntityCount++
+                        }
+                        else {
+                            $summary.invisibleEntityCount++
+                        }
+                        if ($isViewModel) {
+                            $summary.viewModelEntityCount++
+                        }
+                    }
+                    default {
+                        throw "Unsupported AGR top-level token '$token' in '$Path'."
+                    }
+                }
+            }
+
+            $summary.uniqueEntityHandleCount = $entityHandles.Count
+            $summary.uniqueDeletedHandleCount = $deletedHandles.Count
+            $summary.uniqueHiddenHandleCount = $hiddenHandles.Count
+            $summary.models = @($summary.models | Sort-Object)
+            return [PSCustomObject]$summary
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-AgrComparisonValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ArtifactPath,
+
+        [string]$PropertyName,
+
+        [hashtable]$SummaryCache
+    )
+
+    if (-not (Test-Path -LiteralPath $ArtifactPath)) {
+        return $null
+    }
+
+    if ($SummaryCache -and -not $SummaryCache.ContainsKey($ArtifactPath)) {
+        $SummaryCache[$ArtifactPath] = Read-AgrFileSummary -Path $ArtifactPath
+    }
+
+    $summary = if ($SummaryCache) { $SummaryCache[$ArtifactPath] } else { Read-AgrFileSummary -Path $ArtifactPath }
+    if (-not $PropertyName) {
+        return $summary
+    }
+
+    return $summary.$PropertyName
+}
+
 function Format-ProcessArgument {
     param(
         [Parameter(Mandatory = $true)]
@@ -721,6 +1042,7 @@ try {
     }
 
     $artifactResults = @()
+    $artifactResultsByPath = @{}
     $allArtifactsValid = $true
     foreach ($artifact in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "expectedArtifacts" -Default @()))) {
         $artifactPathValue = Expand-Tokens -Value ([string]$artifact.path) -Tokens $tokens
@@ -733,16 +1055,194 @@ try {
             $allArtifactsValid = $false
         }
 
-        $artifactResults += [PSCustomObject]@{
+        $artifactResult = [PSCustomObject]@{
             path = $artifactPath
             exists = $exists
             size = $size
             minBytes = $minBytes
             valid = $valid
         }
+        $artifactResults += $artifactResult
+        $artifactResultsByPath[$artifactPath] = $artifactResult
     }
 
-    $success = $allPatternsMatched -and $allArtifactsValid -and (($null -eq $cs2ExitCode) -or ($cs2ExitCode -eq 0))
+    $artifactStringResults = @()
+    $allArtifactStringsMatched = $true
+    foreach ($artifactCheck in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "artifactStringChecks" -Default @()))) {
+        $artifactPathValue = Expand-Tokens -Value ([string]$artifactCheck.path) -Tokens $tokens
+        $artifactPath = Resolve-ArtifactPath -ArtifactPath $artifactPathValue -OutputDir $outputDir
+        $exists = Test-Path -LiteralPath $artifactPath
+        $printableStrings = if ($exists) { Get-PrintableStrings -Path $artifactPath } else { @() }
+        $joinedStrings = ($printableStrings -join [Environment]::NewLine)
+
+        foreach ($pattern in @((Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "requiredPatterns" -Default @()))) {
+            $expandedPattern = Expand-Tokens -Value ([string]$pattern) -Tokens $tokens
+            $matched = $exists -and [System.Text.RegularExpressions.Regex]::IsMatch($joinedStrings, $expandedPattern)
+            if (-not $matched) {
+                $allArtifactStringsMatched = $false
+            }
+
+            $artifactStringResults += [PSCustomObject]@{
+                path = $artifactPath
+                kind = "required"
+                pattern = $expandedPattern
+                matched = $matched
+            }
+        }
+
+        foreach ($pattern in @((Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "forbiddenPatterns" -Default @()))) {
+            $expandedPattern = Expand-Tokens -Value ([string]$pattern) -Tokens $tokens
+            $matched = $exists -and [System.Text.RegularExpressions.Regex]::IsMatch($joinedStrings, $expandedPattern)
+            $passed = -not $matched
+            if (-not $passed) {
+                $allArtifactStringsMatched = $false
+            }
+
+            $artifactStringResults += [PSCustomObject]@{
+                path = $artifactPath
+                kind = "forbidden"
+                pattern = $expandedPattern
+                matched = $matched
+                passed = $passed
+            }
+        }
+    }
+
+    $artifactComparisonResults = @()
+    $allArtifactComparisonsMatched = $true
+    foreach ($comparison in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "artifactSizeComparisons" -Default @()))) {
+        $leftPathValue = Expand-Tokens -Value ([string]$comparison.leftPath) -Tokens $tokens
+        $rightPathValue = Expand-Tokens -Value ([string]$comparison.rightPath) -Tokens $tokens
+        $leftPath = Resolve-ArtifactPath -ArtifactPath $leftPathValue -OutputDir $outputDir
+        $rightPath = Resolve-ArtifactPath -ArtifactPath $rightPathValue -OutputDir $outputDir
+        $leftExists = Test-Path -LiteralPath $leftPath
+        $rightExists = Test-Path -LiteralPath $rightPath
+        $leftSize = if ($leftExists) { (Get-Item -LiteralPath $leftPath).Length } else { 0 }
+        $rightSize = if ($rightExists) { (Get-Item -LiteralPath $rightPath).Length } else { 0 }
+        $operator = [string](Get-ScenarioPropertyValue -Scenario $comparison -Name "operator" -Default "eq")
+
+        $passed = switch ($operator) {
+            "gt" { $leftExists -and $rightExists -and ($leftSize -gt $rightSize) }
+            "ge" { $leftExists -and $rightExists -and ($leftSize -ge $rightSize) }
+            "lt" { $leftExists -and $rightExists -and ($leftSize -lt $rightSize) }
+            "le" { $leftExists -and $rightExists -and ($leftSize -le $rightSize) }
+            "ne" { $leftExists -and $rightExists -and ($leftSize -ne $rightSize) }
+            default { $leftExists -and $rightExists -and ($leftSize -eq $rightSize) }
+        }
+
+        if (-not $passed) {
+            $allArtifactComparisonsMatched = $false
+        }
+
+        $artifactComparisonResults += [PSCustomObject]@{
+            leftPath = $leftPath
+            leftSize = $leftSize
+            operator = $operator
+            rightPath = $rightPath
+            rightSize = $rightSize
+            passed = $passed
+        }
+    }
+
+    $artifactAgrResults = @()
+    $allArtifactAgrMatched = $true
+    $agrSummaryCache = @{}
+    foreach ($artifactCheck in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "artifactAgrChecks" -Default @()))) {
+        $artifactPathValue = Expand-Tokens -Value ([string]$artifactCheck.path) -Tokens $tokens
+        $artifactPath = Resolve-ArtifactPath -ArtifactPath $artifactPathValue -OutputDir $outputDir
+        $exists = Test-Path -LiteralPath $artifactPath
+        $agrSummary = if ($exists) {
+            if (-not $agrSummaryCache.ContainsKey($artifactPath)) {
+                $agrSummaryCache[$artifactPath] = Read-AgrFileSummary -Path $artifactPath
+            }
+            $agrSummaryCache[$artifactPath]
+        } else { $null }
+        $expectations = Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "expectations" -Default $null
+
+        if ($null -eq $expectations) {
+            $artifactAgrResults += [PSCustomObject]@{
+                path = $artifactPath
+                exists = $exists
+                passed = $exists
+            }
+
+            if (-not $exists) {
+                $allArtifactAgrMatched = $false
+            }
+            continue
+        }
+
+        foreach ($property in $expectations.PSObject.Properties) {
+            $propertyName = [string]$property.Name
+            $actualValue = if ($agrSummary) { $agrSummary.$propertyName } else { $null }
+            $actualNumber = if ($null -ne $actualValue) { [double]$actualValue } else { [double]::NaN }
+            $passed = $exists -and $null -ne $actualValue -and (Test-AgrNumericExpectation -Actual $actualNumber -Expected $property.Value -Summary $agrSummary)
+            if (-not $passed) {
+                $allArtifactAgrMatched = $false
+            }
+
+            $artifactAgrResults += [PSCustomObject]@{
+                path = $artifactPath
+                property = $propertyName
+                actual = $actualValue
+                expected = $property.Value
+                passed = $passed
+            }
+        }
+    }
+
+    $artifactAgrComparisonResults = @()
+    $allArtifactAgrComparisonsMatched = $true
+    foreach ($comparison in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "artifactAgrComparisons" -Default @()))) {
+        $leftPathValue = Expand-Tokens -Value ([string]$comparison.leftPath) -Tokens $tokens
+        $rightPathValue = Expand-Tokens -Value ([string]$comparison.rightPath) -Tokens $tokens
+        $leftPath = Resolve-ArtifactPath -ArtifactPath $leftPathValue -OutputDir $outputDir
+        $rightPath = Resolve-ArtifactPath -ArtifactPath $rightPathValue -OutputDir $outputDir
+        $leftProperty = [string](Get-ScenarioPropertyValue -Scenario $comparison -Name "leftProperty" -Default "")
+        $rightProperty = [string](Get-ScenarioPropertyValue -Scenario $comparison -Name "rightProperty" -Default "")
+        $operator = [string](Get-ScenarioPropertyValue -Scenario $comparison -Name "operator" -Default "eq")
+
+        $leftValue = Get-AgrComparisonValue -ArtifactPath $leftPath -PropertyName $leftProperty -SummaryCache $agrSummaryCache
+        $rightValue = Get-AgrComparisonValue -ArtifactPath $rightPath -PropertyName $rightProperty -SummaryCache $agrSummaryCache
+        $leftExists = $null -ne $leftValue
+        $rightExists = $null -ne $rightValue
+
+        $leftNumber = if ($leftExists) { [double]$leftValue } else { [double]::NaN }
+        $rightNumber = if ($rightExists) { [double]$rightValue } else { [double]::NaN }
+
+        $passed = switch ($operator) {
+            "gt" { $leftExists -and $rightExists -and ($leftNumber -gt $rightNumber) }
+            "ge" { $leftExists -and $rightExists -and ($leftNumber -ge $rightNumber) }
+            "lt" { $leftExists -and $rightExists -and ($leftNumber -lt $rightNumber) }
+            "le" { $leftExists -and $rightExists -and ($leftNumber -le $rightNumber) }
+            "ne" { $leftExists -and $rightExists -and ($leftNumber -ne $rightNumber) }
+            default { $leftExists -and $rightExists -and ($leftNumber -eq $rightNumber) }
+        }
+
+        if (-not $passed) {
+            $allArtifactAgrComparisonsMatched = $false
+        }
+
+        $artifactAgrComparisonResults += [PSCustomObject]@{
+            leftPath = $leftPath
+            leftProperty = $leftProperty
+            leftValue = $leftValue
+            operator = $operator
+            rightPath = $rightPath
+            rightProperty = $rightProperty
+            rightValue = $rightValue
+            passed = $passed
+        }
+    }
+
+    $success =
+        $allPatternsMatched `
+        -and $allArtifactsValid `
+        -and $allArtifactStringsMatched `
+        -and $allArtifactComparisonsMatched `
+        -and $allArtifactAgrMatched `
+        -and $allArtifactAgrComparisonsMatched `
+        -and (($null -eq $cs2ExitCode) -or ($cs2ExitCode -eq 0))
 
     $result = [PSCustomObject]@{
         success = $success
@@ -756,6 +1256,10 @@ try {
         cs2ExitCode = $cs2ExitCode
         logPatterns = $patternResults
         artifacts = $artifactResults
+        artifactStringChecks = $artifactStringResults
+        artifactSizeComparisons = $artifactComparisonResults
+        artifactAgrChecks = $artifactAgrResults
+        artifactAgrComparisons = $artifactAgrComparisonResults
     }
 
     $result | ConvertTo-Json -Depth 6 | Set-Content -Path $resultPath -Encoding UTF8

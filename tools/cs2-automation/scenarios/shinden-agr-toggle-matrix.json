@@ -1,0 +1,497 @@
+{
+  "name": "shinden-agr-toggle-matrix",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 300,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2002,
+      "command": "mirv_agr recordCamera 1; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2003,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/camera-only.agr\""
+    },
+    {
+      "tick": 2010,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2012,
+      "command": "echo AIAUTO:AGR:CAMERA_ONLY"
+    },
+    {
+      "tick": 2020,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2021,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/players-no-camera.agr\""
+    },
+    {
+      "tick": 2028,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2030,
+      "command": "echo AIAUTO:AGR:PLAYERS_NO_CAMERA"
+    },
+    {
+      "tick": 2040,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras -1; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2041,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/players-with-camera.agr\""
+    },
+    {
+      "tick": 2048,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2050,
+      "command": "echo AIAUTO:AGR:PLAYERS_WITH_CAMERA"
+    },
+    {
+      "tick": 2060,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 1; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2061,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/weapons-only.agr\""
+    },
+    {
+      "tick": 2068,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2070,
+      "command": "echo AIAUTO:AGR:WEAPONS_ONLY"
+    },
+    {
+      "tick": 2080,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 1; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2081,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/projectiles-only.agr\""
+    },
+    {
+      "tick": 2088,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2090,
+      "command": "echo AIAUTO:AGR:PROJECTILES_ONLY"
+    },
+    {
+      "tick": 2100,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels -1; mirv_agr recordInvisible 1"
+    },
+    {
+      "tick": 2101,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/viewmodels-only.agr\""
+    },
+    {
+      "tick": 2108,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2110,
+      "command": "echo AIAUTO:AGR:VIEWMODELS_ONLY"
+    },
+    {
+      "tick": 2120,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 1; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 1"
+    },
+    {
+      "tick": 2121,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/weapons-invisible.agr\""
+    },
+    {
+      "tick": 2128,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2130,
+      "command": "echo AIAUTO:AGR:WEAPONS_INVISIBLE"
+    },
+    {
+      "tick": 2140,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 69; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2141,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/players-specific-camera.agr\""
+    },
+    {
+      "tick": 2148,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2150,
+      "command": "echo AIAUTO:AGR:PLAYERS_SPECIFIC_CAMERA"
+    },
+    {
+      "tick": 2160,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 69; mirv_agr recordInvisible 1"
+    },
+    {
+      "tick": 2161,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/viewmodels-specific.agr\""
+    },
+    {
+      "tick": 2168,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2170,
+      "command": "echo AIAUTO:AGR:VIEWMODELS_SPECIFIC"
+    },
+    {
+      "tick": 2180,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModel 1; mirv_agr recordInvisible 1"
+    },
+    {
+      "tick": 2181,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/viewmodel-legacy.agr\""
+    },
+    {
+      "tick": 2188,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2190,
+      "command": "echo AIAUTO:AGR:VIEWMODEL_LEGACY"
+    },
+    {
+      "tick": 2200,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-toggle-matrix",
+    "AIAUTO:SCENARIO:shinden-agr-toggle-matrix",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "AIAUTO:AGR:CAMERA_ONLY",
+    "AIAUTO:AGR:PLAYERS_NO_CAMERA",
+    "AIAUTO:AGR:PLAYERS_WITH_CAMERA",
+    "AIAUTO:AGR:WEAPONS_ONLY",
+    "AIAUTO:AGR:PROJECTILES_ONLY",
+    "AIAUTO:AGR:VIEWMODELS_ONLY",
+    "AIAUTO:AGR:WEAPONS_INVISIBLE",
+    "AIAUTO:AGR:PLAYERS_SPECIFIC_CAMERA",
+    "AIAUTO:AGR:VIEWMODELS_SPECIFIC",
+    "AIAUTO:AGR:VIEWMODEL_LEGACY"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\camera-only.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\players-no-camera.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\players-with-camera.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\weapons-only.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\projectiles-only.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\viewmodels-only.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\weapons-invisible.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\players-specific-camera.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\viewmodels-specific.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\viewmodel-legacy.agr",
+      "minBytes": 64
+    }
+  ],
+  "artifactStringChecks": [
+    {
+      "path": "artifacts\\camera-only.agr",
+      "requiredPatterns": [
+        "afxCam"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/",
+        "weapons/models/"
+      ]
+    },
+    {
+      "path": "artifacts\\players-no-camera.agr",
+      "requiredPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ],
+      "forbiddenPatterns": [
+        "camera",
+        "weapons/models/"
+      ]
+    },
+    {
+      "path": "artifacts\\players-with-camera.agr",
+      "requiredPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl",
+        "camera"
+      ]
+    },
+    {
+      "path": "artifacts\\weapons-only.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\projectiles-only.agr",
+      "requiredPatterns": [
+        "smokegrenade"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\viewmodels-only.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\players-specific-camera.agr",
+      "requiredPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl",
+        "camera"
+      ]
+    },
+    {
+      "path": "artifacts\\viewmodels-specific.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\viewmodel-legacy.agr",
+      "requiredPatterns": [
+        "weapons/models/"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+      ]
+    }
+  ],
+  "artifactSizeComparisons": [
+    {
+      "leftPath": "artifacts\\weapons-invisible.agr",
+      "operator": "gt",
+      "rightPath": "artifacts\\weapons-only.agr"
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "artifacts\\camera-only.agr",
+      "expectations": {
+        "entityCount": 0,
+        "mainCameraCount": {
+          "operator": "ge",
+          "value": 1
+        }
+      }
+    },
+    {
+      "path": "artifacts\\players-no-camera.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": 0,
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\players-with-camera.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\weapons-only.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "invisibleEntityCount": 0,
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\projectiles-only.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": 0,
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\viewmodels-only.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
+        },
+        "invisibleEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\weapons-invisible.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "invisibleEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\players-specific-camera.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "playerCameraCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\viewmodels-specific.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
+        },
+        "invisibleEntityCount": 0
+      }
+    },
+    {
+      "path": "artifacts\\viewmodel-legacy.agr",
+      "expectations": {
+        "entityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelEntityCount": {
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
+        },
+        "invisibleEntityCount": 0
+      }
+    }
+  ],
+  "artifactAgrComparisons": [
+    {
+      "leftPath": "artifacts\\players-with-camera.agr",
+      "leftProperty": "playerCameraCount",
+      "operator": "gt",
+      "rightPath": "artifacts\\players-specific-camera.agr",
+      "rightProperty": "playerCameraCount"
+    },
+    {
+      "leftPath": "artifacts\\viewmodels-only.agr",
+      "leftProperty": "viewModelEntityCount",
+      "operator": "gt",
+      "rightPath": "artifacts\\viewmodels-specific.agr",
+      "rightProperty": "viewModelEntityCount"
+    },
+    {
+      "leftPath": "artifacts\\viewmodels-only.agr",
+      "leftProperty": "uniqueEntityHandleCount",
+      "operator": "eq",
+      "rightPath": "artifacts\\viewmodel-legacy.agr",
+      "rightProperty": "uniqueEntityHandleCount"
+    },
+    {
+      "leftPath": "artifacts\\viewmodel-legacy.agr",
+      "leftProperty": "viewModelEntityCount",
+      "operator": "gt",
+      "rightPath": "artifacts\\viewmodels-specific.agr",
+      "rightProperty": "viewModelEntityCount"
+    }
+  ]
+}

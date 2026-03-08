@@ -8,6 +8,8 @@
 
 namespace advancedfx {
 
+constexpr int kAfxGameRecordFormatVersionCurrent = 6;
+
 class CAfxGameRecord
 {
 public:

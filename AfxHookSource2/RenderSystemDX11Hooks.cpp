@@ -3,6 +3,7 @@
 #include "RenderSystemDX11Hooks.h"
 
 #include "CampathDrawer.h"
+#include "Agr.h"
 #include "RenderServiceHooks.h"
 #include "ReShadeAdvancedfx.h"
 #include "WrpConsole.h"
@@ -4302,9 +4303,11 @@ void RenderSystemDX11_EngineThread_EndNextRenderPass() {
 
 void RenderSystemDX11_EngineThread_BeginMainRenderPass() {
     g_AfxStreams.EngineThread_BeginMainRenderPass();
+    CAgrRecorder::Get().OnBeginMainRenderPass();
 }
 
 void RenderSystemDX11_EngineThread_EndMainRenderPass() {
+    CAgrRecorder::Get().OnEndMainRenderPass();
     g_AfxStreams.EngineThread_EndMainRenderPass();
 }
 
