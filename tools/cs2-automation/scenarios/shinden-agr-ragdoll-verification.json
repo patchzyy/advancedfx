@@ -1,0 +1,86 @@
+{
+  "name": "shinden-agr-ragdoll-verification",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 240,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 2,
+      "command": "demo_gototick 11000"
+    },
+    {
+      "tick": 11005,
+      "command": "spec_player 6; spec_mode 4; demo_timescale 0.25; mirv_agr debug 2; mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 11011,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/ragdoll-verification.agr\""
+    },
+    {
+      "tick": 11080,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 11082,
+      "command": "demo_timescale 1; echo AIAUTO:AGR:RAGDOLL_VERIFICATION_DONE"
+    },
+    {
+      "tick": 11095,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "Started AGR recording\\.",
+    "Stopped AGR recording\\.",
+    "AGR debug frame .*ragdollRecords=[1-9]",
+    "AGR debug: record handle=.*health=0 ragdollState=1 class=c_cs_player_for_precache"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "{{artifactsDirForward}}/ragdoll-verification.agr",
+      "minBytes": 100000
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "{{artifactsDirForward}}/ragdoll-verification.agr",
+      "property": "frameCount",
+      "equals": {
+        "operator": "ge",
+        "value": 100
+      }
+    },
+    {
+      "path": "{{artifactsDirForward}}/ragdoll-verification.agr",
+      "property": "boneEntityCount",
+      "equals": {
+        "operator": "ge",
+        "value": 10
+      }
+    },
+    {
+      "path": "{{artifactsDirForward}}/ragdoll-verification.agr",
+      "property": "movingBoneEntityCount",
+      "equals": {
+        "operator": "ge",
+        "value": 1
+      }
+    },
+    {
+      "path": "{{artifactsDirForward}}/ragdoll-verification.agr",
+      "property": "maxBoneCount",
+      "equals": {
+        "operator": "ge",
+        "value": 10
+      }
+    }
+  ]
+}

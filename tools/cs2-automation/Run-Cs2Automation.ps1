@@ -629,6 +629,9 @@ function Read-AgrFileSummary {
             $deletedHandles = New-Object System.Collections.Generic.HashSet[int]
             $movingEntityHandles = New-Object System.Collections.Generic.HashSet[int]
             $movingBoneHandles = New-Object System.Collections.Generic.HashSet[int]
+            $movingViewModelHandles = New-Object System.Collections.Generic.HashSet[int]
+            $worldWeaponHandles = New-Object System.Collections.Generic.HashSet[int]
+            $viewModelHandles = New-Object System.Collections.Generic.HashSet[int]
             $entityOriginByHandle = @{}
             $firstBoneTranslationByHandle = @{}
             $summary = [ordered]@{
@@ -650,6 +653,13 @@ function Read-AgrFileSummary {
                 maxBoneCount = 0
                 movingEntityHandleCount = 0
                 movingBoneEntityCount = 0
+                movingViewModelHandleCount = 0
+                worldWeaponEntityCount = 0
+                uniqueWorldWeaponHandleCount = 0
+                worldWeaponModelCount = 0
+                uniqueViewModelHandleCount = 0
+                viewModelModelCount = 0
+                viewModelBoneEntityCount = 0
                 firstMainCameraPosX = $null
                 firstMainCameraPosY = $null
                 firstMainCameraPosZ = $null
@@ -664,7 +674,13 @@ function Read-AgrFileSummary {
                 lastMainCameraAng1 = $null
                 lastMainCameraAng2 = $null
                 lastMainCameraFov = $null
+                firstPlayerCameraFov = $null
+                lastPlayerCameraFov = $null
+                playerCameraFovMin = $null
+                playerCameraFovMax = $null
                 models = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+                viewModelModels = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+                worldWeaponModels = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
             }
 
             while ($reader.BaseStream.Position -lt $reader.BaseStream.Length) {
@@ -722,6 +738,8 @@ function Read-AgrFileSummary {
                         $entityVisible = $false
                         $isViewModel = $false
                         $entityOrigin = $null
+                        $entityModelName = $null
+                        $hasBones = $false
 
                         while ($true) {
                             $entityToken = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
@@ -732,9 +750,9 @@ function Read-AgrFileSummary {
 
                             switch ($entityToken) {
                                 "baseentity" {
-                                    $modelName = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
-                                    if ($modelName) {
-                                        [void]$summary.models.Add($modelName)
+                                    $entityModelName = Read-AgrDictionaryToken -Reader $reader -Dictionary $dictionary
+                                    if ($entityModelName) {
+                                        [void]$summary.models.Add($entityModelName)
                                     }
                                     $entityVisible = $reader.ReadBoolean()
                                     $matrixValues = New-Object double[] 12
@@ -778,6 +796,9 @@ function Read-AgrFileSummary {
                                                 if ($firstBoneTranslationByHandle.ContainsKey($entityHandle)) {
                                                     if (Test-AgrVectorChanged -Current $boneTranslation -Reference $firstBoneTranslationByHandle[$entityHandle]) {
                                                         [void]$movingBoneHandles.Add($entityHandle)
+                                                        if ($isViewModel) {
+                                                            [void]$movingViewModelHandles.Add($entityHandle)
+                                                        }
                                                     }
                                                 }
                                                 else {
@@ -789,9 +810,24 @@ function Read-AgrFileSummary {
                                 }
                                 "camera" {
                                     [void]$reader.ReadBoolean()
-                                    for ($i = 0; $i -lt 7; ++$i) {
+                                    for ($i = 0; $i -lt 6; ++$i) {
                                         [void]$reader.ReadSingle()
                                     }
+                                    $playerCameraFov = [double]$reader.ReadSingle()
+                                    if ($summary.playerCameraCount -eq 0) {
+                                        $summary.firstPlayerCameraFov = $playerCameraFov
+                                        $summary.playerCameraFovMin = $playerCameraFov
+                                        $summary.playerCameraFovMax = $playerCameraFov
+                                    }
+                                    else {
+                                        if ($playerCameraFov -lt $summary.playerCameraFovMin) {
+                                            $summary.playerCameraFovMin = $playerCameraFov
+                                        }
+                                        if ($playerCameraFov -gt $summary.playerCameraFovMax) {
+                                            $summary.playerCameraFovMax = $playerCameraFov
+                                        }
+                                    }
+                                    $summary.lastPlayerCameraFov = $playerCameraFov
                                     $summary.playerCameraCount++
                                 }
                                 default {
@@ -809,6 +845,22 @@ function Read-AgrFileSummary {
                         }
                         if ($isViewModel) {
                             $summary.viewModelEntityCount++
+                            [void]$viewModelHandles.Add($entityHandle)
+                            if ($hasBones) {
+                                $summary.viewModelBoneEntityCount++
+                            }
+                            if ($entityModelName) {
+                                [void]$summary.viewModelModels.Add($entityModelName)
+                            }
+                        }
+                        elseif ($entityModelName -and $entityModelName.StartsWith("weapons/models/", [System.StringComparison]::OrdinalIgnoreCase)) {
+                            $summary.worldWeaponEntityCount++
+                            [void]$worldWeaponHandles.Add($entityHandle)
+                            [void]$summary.worldWeaponModels.Add($entityModelName)
+                        }
+
+                        if ($isViewModel -and $entityOriginByHandle.ContainsKey($entityHandle) -and $movingEntityHandles.Contains($entityHandle)) {
+                            [void]$movingViewModelHandles.Add($entityHandle)
                         }
                     }
                     default {
@@ -822,7 +874,14 @@ function Read-AgrFileSummary {
             $summary.uniqueHiddenHandleCount = $hiddenHandles.Count
             $summary.movingEntityHandleCount = $movingEntityHandles.Count
             $summary.movingBoneEntityCount = $movingBoneHandles.Count
+            $summary.movingViewModelHandleCount = $movingViewModelHandles.Count
+            $summary.uniqueWorldWeaponHandleCount = $worldWeaponHandles.Count
+            $summary.uniqueViewModelHandleCount = $viewModelHandles.Count
+            $summary.worldWeaponModelCount = $summary.worldWeaponModels.Count
+            $summary.viewModelModelCount = $summary.viewModelModels.Count
             $summary.models = @($summary.models | Sort-Object)
+            $summary.viewModelModels = @($summary.viewModelModels | Sort-Object)
+            $summary.worldWeaponModels = @($summary.worldWeaponModels | Sort-Object)
             return [PSCustomObject]$summary
         }
         finally {
@@ -832,6 +891,29 @@ function Read-AgrFileSummary {
     finally {
         $stream.Dispose()
     }
+}
+
+function Get-AgrPatternSourceText {
+    param(
+        $Summary,
+
+        [string]$PropertyName = "models"
+    )
+
+    if ($null -eq $Summary) {
+        return ""
+    }
+
+    $value = $Summary.$PropertyName
+    if ($null -eq $value) {
+        return ""
+    }
+
+    if ($value -is [System.Array] -or $value -is [System.Collections.IEnumerable]) {
+        return (($value | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+    }
+
+    return [string]$value
 }
 
 function Get-AgrComparisonValue {
@@ -1272,6 +1354,7 @@ try {
 
         $leftNumber = if ($leftExists) { [double]$leftValue } else { [double]::NaN }
         $rightNumber = if ($rightExists) { [double]$rightValue } else { [double]::NaN }
+        $tolerance = [double](Get-ScenarioPropertyValue -Scenario $comparison -Name "tolerance" -Default 0)
 
         $passed = switch ($operator) {
             "gt" { $leftExists -and $rightExists -and ($leftNumber -gt $rightNumber) }
@@ -1279,6 +1362,7 @@ try {
             "lt" { $leftExists -and $rightExists -and ($leftNumber -lt $rightNumber) }
             "le" { $leftExists -and $rightExists -and ($leftNumber -le $rightNumber) }
             "ne" { $leftExists -and $rightExists -and ($leftNumber -ne $rightNumber) }
+            "approx" { $leftExists -and $rightExists -and ([math]::Abs($leftNumber - $rightNumber) -le $tolerance) }
             default { $leftExists -and $rightExists -and ($leftNumber -eq $rightNumber) }
         }
 
@@ -1294,7 +1378,60 @@ try {
             rightPath = $rightPath
             rightProperty = $rightProperty
             rightValue = $rightValue
+            tolerance = $tolerance
             passed = $passed
+        }
+    }
+
+    $artifactAgrModelResults = @()
+    $allArtifactAgrModelsMatched = $true
+    foreach ($artifactCheck in @((Get-ScenarioPropertyValue -Scenario $scenario -Name "artifactAgrModelChecks" -Default @()))) {
+        $artifactPathValue = Expand-Tokens -Value ([string]$artifactCheck.path) -Tokens $tokens
+        $artifactPath = Resolve-ArtifactPath -ArtifactPath $artifactPathValue -OutputDir $outputDir
+        $exists = Test-Path -LiteralPath $artifactPath
+        $summary = if ($exists) {
+            if (-not $agrSummaryCache.ContainsKey($artifactPath)) {
+                $agrSummaryCache[$artifactPath] = Read-AgrFileSummary -Path $artifactPath
+            }
+            $agrSummaryCache[$artifactPath]
+        }
+        else { $null }
+
+        $propertyName = [string](Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "property" -Default "models")
+        $patternText = Get-AgrPatternSourceText -Summary $summary -PropertyName $propertyName
+
+        foreach ($pattern in @((Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "requiredPatterns" -Default @()))) {
+            $expandedPattern = Expand-Tokens -Value ([string]$pattern) -Tokens $tokens
+            $matched = $exists -and [System.Text.RegularExpressions.Regex]::IsMatch($patternText, $expandedPattern)
+            if (-not $matched) {
+                $allArtifactAgrModelsMatched = $false
+            }
+
+            $artifactAgrModelResults += [PSCustomObject]@{
+                path = $artifactPath
+                property = $propertyName
+                kind = "required"
+                pattern = $expandedPattern
+                matched = $matched
+            }
+        }
+
+        foreach ($pattern in @((Get-ScenarioPropertyValue -Scenario $artifactCheck -Name "forbiddenPatterns" -Default @()))) {
+            $expandedPattern = Expand-Tokens -Value ([string]$pattern) -Tokens $tokens
+            $matched = $exists -and [System.Text.RegularExpressions.Regex]::IsMatch($patternText, $expandedPattern)
+            $passed = -not $matched
+            if (-not $passed) {
+                $allArtifactAgrModelsMatched = $false
+            }
+
+            $artifactAgrModelResults += [PSCustomObject]@{
+                path = $artifactPath
+                property = $propertyName
+                kind = "forbidden"
+                pattern = $expandedPattern
+                matched = $matched
+                passed = $passed
+            }
         }
     }
 
@@ -1305,6 +1442,7 @@ try {
         -and $allArtifactComparisonsMatched `
         -and $allArtifactAgrMatched `
         -and $allArtifactAgrComparisonsMatched `
+        -and $allArtifactAgrModelsMatched `
         -and (($null -eq $cs2ExitCode) -or ($cs2ExitCode -eq 0))
 
     $result = [PSCustomObject]@{
@@ -1323,6 +1461,7 @@ try {
         artifactSizeComparisons = $artifactComparisonResults
         artifactAgrChecks = $artifactAgrResults
         artifactAgrComparisons = $artifactAgrComparisonResults
+        artifactAgrModelChecks = $artifactAgrModelResults
     }
 
     $result | ConvertTo-Json -Depth 6 | Set-Content -Path $resultPath -Encoding UTF8

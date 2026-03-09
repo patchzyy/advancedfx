@@ -110,6 +110,12 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance, "client.dll", "CBodyComponentSkeletonInstance", "m_skeletonInstance");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CSkeletonInstance.m_modelState, "client.dll", "CSkeletonInstance", "m_modelState");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CModelState.m_ModelName, "client.dll", "CModelState", "m_ModelName");
+	getOffset(&g_clientDllOffsets.CBaseAnimGraph.m_pClientsideRagdoll, "client.dll", "CBaseAnimGraph", "m_pClientsideRagdoll");
+	getOffset(&g_clientDllOffsets.CBaseAnimGraph.m_bBuiltRagdoll, "client.dll", "CBaseAnimGraph", "m_bBuiltRagdoll");
+	getOffset(&g_clientDllOffsets.CBaseAnimGraph.m_bRagdollEnabled, "client.dll", "CBaseAnimGraph", "m_bRagdollEnabled");
+	getOffset(&g_clientDllOffsets.CBaseAnimGraph.m_bRagdollClientSide, "client.dll", "CBaseAnimGraph", "m_bRagdollClientSide");
+	getOffset(&g_clientDllOffsets.CBaseAnimGraph.m_RagdollPose, "client.dll", "CBaseAnimGraph", "m_RagdollPose");
+	getOffset(&g_clientDllOffsets.PhysicsRagdollPose_t.m_Transforms, "client.dll", "PhysicsRagdollPose_t", "m_Transforms");
 	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragEnabled, "client.dll", "C_RagdollProp", "m_ragEnabled");
 	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragPos, "client.dll", "C_RagdollProp", "m_ragPos");
 	getOffset(&g_clientDllOffsets.C_RagdollProp.m_ragAngles, "client.dll", "C_RagdollProp", "m_ragAngles");

@@ -72,6 +72,18 @@ struct ClientDllOffsets_t {
 		ptrdiff_t m_ModelName = 0; // CUtlSymbolLarge
 	} CModelState;
 
+	struct CBaseAnimGraph {
+		ptrdiff_t m_pClientsideRagdoll = 0; // CBaseAnimGraph*
+		ptrdiff_t m_bBuiltRagdoll = 0; // bool
+		ptrdiff_t m_bRagdollEnabled = 0; // bool
+		ptrdiff_t m_bRagdollClientSide = 0; // bool
+		ptrdiff_t m_RagdollPose = 0; // PhysicsRagdollPose_t
+	} CBaseAnimGraph;
+
+	struct PhysicsRagdollPose_t {
+		ptrdiff_t m_Transforms = 0; // C_NetworkUtlVectorBase<CTransform>
+	} PhysicsRagdollPose_t;
+
 	struct C_RagdollProp {
 		ptrdiff_t m_ragEnabled = 0; // C_NetworkUtlVectorBase<bool>
 		ptrdiff_t m_ragPos = 0; // C_NetworkUtlVectorBase<Vector>

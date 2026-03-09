@@ -265,7 +265,8 @@
       ],
       "forbiddenPatterns": [
         "camera",
-        "weapons/models/"
+        "weapons/models/",
+        "characters/models/shared/observer/cs_observer\\.vmdl"
       ]
     },
     {
@@ -273,6 +274,9 @@
       "requiredPatterns": [
         "characters/models/tm_phoenix/tm_phoenix\\.vmdl",
         "camera"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
       ]
     },
     {
@@ -307,6 +311,9 @@
       "requiredPatterns": [
         "characters/models/tm_phoenix/tm_phoenix\\.vmdl",
         "camera"
+      ],
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
       ]
     },
     {
@@ -328,13 +335,7 @@
       ]
     }
   ],
-  "artifactSizeComparisons": [
-    {
-      "leftPath": "artifacts\\weapons-invisible.agr",
-      "operator": "gt",
-      "rightPath": "artifacts\\weapons-only.agr"
-    }
-  ],
+  "artifactSizeComparisons": [],
   "artifactAgrChecks": [
     {
       "path": "artifacts\\camera-only.agr",
@@ -353,6 +354,7 @@
           "operator": "gt",
           "value": 0
         },
+        "uniqueEntityHandleCount": 10,
         "playerCameraCount": 0,
         "viewModelEntityCount": 0
       }
@@ -364,9 +366,10 @@
           "operator": "gt",
           "value": 0
         },
+        "uniqueEntityHandleCount": 10,
         "playerCameraCount": {
-          "operator": "gt",
-          "value": 0
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
         },
         "viewModelEntityCount": 0
       }
@@ -378,6 +381,7 @@
           "operator": "gt",
           "value": 0
         },
+        "uniqueEntityHandleCount": 2,
         "invisibleEntityCount": 0,
         "viewModelEntityCount": 0
       }
@@ -414,10 +418,8 @@
           "operator": "gt",
           "value": 0
         },
-        "invisibleEntityCount": {
-          "operator": "gt",
-          "value": 0
-        },
+        "uniqueEntityHandleCount": 2,
+        "invisibleEntityCount": 0,
         "viewModelEntityCount": 0
       }
     },
@@ -428,6 +430,7 @@
           "operator": "gt",
           "value": 0
         },
+        "uniqueEntityHandleCount": 10,
         "playerCameraCount": {
           "operator": "gt",
           "value": 0
@@ -471,6 +474,20 @@
       "operator": "gt",
       "rightPath": "artifacts\\players-specific-camera.agr",
       "rightProperty": "playerCameraCount"
+    },
+    {
+      "leftPath": "artifacts\\weapons-invisible.agr",
+      "leftProperty": "uniqueEntityHandleCount",
+      "operator": "eq",
+      "rightPath": "artifacts\\weapons-only.agr",
+      "rightProperty": "uniqueEntityHandleCount"
+    },
+    {
+      "leftPath": "artifacts\\weapons-invisible.agr",
+      "leftProperty": "worldWeaponModelCount",
+      "operator": "eq",
+      "rightPath": "artifacts\\weapons-only.agr",
+      "rightProperty": "worldWeaponModelCount"
     },
     {
       "leftPath": "artifacts\\viewmodels-only.agr",

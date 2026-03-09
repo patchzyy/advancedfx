@@ -100,6 +100,26 @@
       "minBytes": 64
     }
   ],
+  "artifactStringChecks": [
+    {
+      "path": "artifacts\\pov-fidelity.agr",
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\observer-fidelity.agr",
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\hltv-fidelity.agr",
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
+      ]
+    }
+  ],
   "artifactAgrChecks": [
     {
       "path": "artifacts\\pov-fidelity.agr",

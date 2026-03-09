@@ -1,0 +1,204 @@
+{
+  "name": "shinden-agr-problem-ticks",
+  "cs2Exe": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe",
+  "demoPath": "G:\\SteamLibrary\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\shinden-vs-ex-kru-m1-dust2.dem",
+  "screenIndex": 1,
+  "windowWidth": 854,
+  "windowHeight": 480,
+  "startupTimeoutSeconds": 180,
+  "timeoutSeconds": 360,
+  "bootstrapCommands": [
+    "mirv_agr enabled 1",
+    "echo AIAUTO:SCENARIO:{{scenarioName}}"
+  ],
+  "tickCommands": [
+    {
+      "tick": 1,
+      "command": "echo AIAUTO:TICK:1"
+    },
+    {
+      "tick": 2,
+      "command": "demo_gototick 2000"
+    },
+    {
+      "tick": 2001,
+      "command": "echo AIAUTO:TICK:2001"
+    },
+    {
+      "tick": 2002,
+      "command": "demo_timescale 0.25; spec_player 6; spec_mode 4"
+    },
+    {
+      "tick": 2010,
+      "command": "mirv_agr recordCamera 1; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras -1; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 69; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2011,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/pov-import-proof.agr\""
+    },
+    {
+      "tick": 2020,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2022,
+      "command": "echo AIAUTO:AGR:POV_IMPORT_PROOF"
+    },
+    {
+      "tick": 2030,
+      "command": "demo_timescale 0.25; spec_player 6; spec_mode 5"
+    },
+    {
+      "tick": 2038,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 0; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 69; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2039,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/observer-viewmodel-proof.agr\""
+    },
+    {
+      "tick": 2048,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2050,
+      "command": "echo AIAUTO:AGR:OBSERVER_VIEWMODEL_PROOF"
+    },
+    {
+      "tick": 2090,
+      "command": "demo_timescale 0.25; spec_player 6; spec_mode 4"
+    },
+    {
+      "tick": 2098,
+      "command": "mirv_agr recordCamera 0; mirv_agr recordPlayers 1; mirv_agr recordPlayerCameras 0; mirv_agr recordWeapons 0; mirv_agr recordProjectiles 0; mirv_agr recordViewModels 0; mirv_agr recordInvisible 0"
+    },
+    {
+      "tick": 2099,
+      "command": "mirv_agr start \"{{artifactsDirForward}}/hidden-toggle-proof.agr\""
+    },
+    {
+      "tick": 2104,
+      "command": "mirv_agr recordPlayers 0"
+    },
+    {
+      "tick": 2110,
+      "command": "mirv_agr stop"
+    },
+    {
+      "tick": 2112,
+      "command": "echo AIAUTO:AGR:HIDDEN_TOGGLE_PROOF"
+    },
+    {
+      "tick": 2120,
+      "command": "quit"
+    }
+  ],
+  "requiredLogPatterns": [
+    "AIAUTO:BOOTSTRAP:shinden-agr-problem-ticks",
+    "AIAUTO:SCENARIO:shinden-agr-problem-ticks",
+    "AIAUTO:TICK:1",
+    "AIAUTO:TICK:2001",
+    "AIAUTO:AGR:POV_IMPORT_PROOF",
+    "AIAUTO:AGR:OBSERVER_VIEWMODEL_PROOF",
+    "AIAUTO:AGR:HIDDEN_TOGGLE_PROOF"
+  ],
+  "expectedArtifacts": [
+    {
+      "path": "artifacts\\pov-import-proof.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\observer-viewmodel-proof.agr",
+      "minBytes": 64
+    },
+    {
+      "path": "artifacts\\hidden-toggle-proof.agr",
+      "minBytes": 64
+    }
+  ],
+  "artifactAgrChecks": [
+    {
+      "path": "artifacts\\pov-import-proof.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "mainCameraCount": {
+          "operator": "eq",
+          "valueFromProperty": "frameCount"
+        },
+        "viewModelEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "viewModelBoneEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "movingViewModelHandleCount": {
+          "operator": "gt",
+          "value": 0
+        }
+      }
+    },
+    {
+      "path": "artifacts\\observer-viewmodel-proof.agr",
+      "expectations": {
+        "viewModelEntityCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueViewModelHandleCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "movingViewModelHandleCount": {
+          "operator": "gt",
+          "value": 0
+        }
+      }
+    },
+    {
+      "path": "artifacts\\hidden-toggle-proof.agr",
+      "expectations": {
+        "frameCount": {
+          "operator": "gt",
+          "value": 1
+        },
+        "hiddenCount": {
+          "operator": "gt",
+          "value": 0
+        },
+        "uniqueHiddenHandleCount": {
+          "operator": "gt",
+          "value": 0
+        }
+      }
+    }
+  ],
+  "artifactAgrComparisons": [],
+  "artifactAgrModelChecks": [
+    {
+      "path": "artifacts\\pov-import-proof.agr",
+      "property": "viewModelModels",
+      "requiredPatterns": [
+        "weapons/models/"
+      ]
+    },
+    {
+      "path": "artifacts\\pov-import-proof.agr",
+      "property": "models",
+      "forbiddenPatterns": [
+        "characters/models/shared/observer/cs_observer\\.vmdl"
+      ]
+    },
+    {
+      "path": "artifacts\\observer-viewmodel-proof.agr",
+      "property": "viewModelModels",
+      "requiredPatterns": [
+        "weapons/models/"
+      ]
+    }
+  ]
+}

@@ -122,7 +122,7 @@ void CAgrRecorder::StopRecording() {
 
     if (m_Debug && 0 < m_DebugStats.frames) {
         advancedfx::Message(
-            "AGR debug: frames=%d recorded=%d players=%d ragdolls=%d weapons=%d projectiles=%d viewmodels=%d playerCameras=%d hidden=%d deleted=%d\n",
+            "AGR debug: frames=%d entityRecords=%d playerRecords=%d ragdollRecords=%d weapons=%d projectiles=%d viewmodels=%d playerCameras=%d hidden=%d deleted=%d\n",
             m_DebugStats.frames,
             m_DebugStats.recordedEntities,
             m_DebugStats.playerPawns,
@@ -158,8 +158,18 @@ void CAgrRecorder::OnBeginMainRenderPass() {
 void CAgrRecorder::OnEndMainRenderPass() {
     if (!GetRecording() || !m_FrameActive) return;
 
+#ifdef _MSC_VER
+    __try {
+        RecordEntities();
+        WriteCamera();
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        advancedfx::Warning("AGR error: exception during CS2 frame recording.\n");
+    }
+#else
     RecordEntities();
     WriteCamera();
+#endif
     m_Record->EndFrame();
     m_FrameActive = false;
 }
@@ -180,6 +190,24 @@ bool CAgrRecorder::IsProjectileEntity(const char* className, const char* clientC
         || StringContainsInsensitive(clientClassName, "projectile");
 }
 
+bool CAgrRecorder::IsObserverPawnEntity(const char* className, const char* clientClassName) const {
+    return
+        StringContainsInsensitive(className, "observer")
+        || StringContainsInsensitive(clientClassName, "observerpawn");
+}
+
+bool CAgrRecorder::IsPlayerEntity(CEntityInstance* entity) const {
+    if (!entity || !entity->IsPlayerPawn()) return false;
+    return !IsObserverPawnEntity(entity->GetClassName(), entity->GetClientClassName());
+}
+
+bool CAgrRecorder::IsDeadPlayerRagdollCandidate(CEntityInstance* entity) const {
+    return
+        IsPlayerEntity(entity)
+        && 0 == entity->GetHealth()
+        && GetEntityVisible(entity, false);
+}
+
 bool CAgrRecorder::IsRagdollEntity(const char* className, const char* clientClassName) const {
     return StringContainsInsensitive(className, "ragdoll") || StringContainsInsensitive(clientClassName, "ragdoll");
 }
@@ -196,9 +224,10 @@ void CAgrRecorder::CollectFrameContext(FrameContext& outContext) const {
     outContext.viewModelWeaponOwnerByHandle.clear();
     outContext.activeWeaponHandles.clear();
     outContext.observedPlayerEntryIndices.clear();
+    outContext.ragdollHandles.clear();
 
     auto collectPlayerContext = [this, &outContext](CEntityInstance* player, int entryIndex, bool forceViewModelSelection) {
-        if (!player || !player->IsPlayerPawn() || entryIndex < 0) return;
+        if (!IsPlayerEntity(player) || entryIndex < 0) return;
 
         const auto activeWeaponHandle = player->GetActiveWeaponHandle();
         if (activeWeaponHandle.IsValid()) {
@@ -232,15 +261,26 @@ void CAgrRecorder::CollectFrameContext(FrameContext& outContext) const {
     const int highestIndex = GetHighestEntityIndex();
     for (int entryIndex = 0; entryIndex <= highestIndex; ++entryIndex) {
         auto* entity = GetEntityByEntryIndex(entryIndex);
-        if (!entity || !entity->IsPlayerPawn()) continue;
-        collectPlayerContext(entity, entryIndex, false);
+        if (!entity) continue;
+
+        if (IsPlayerEntity(entity)) {
+            collectPlayerContext(entity, entryIndex, false);
+        }
+
+        const char* className = entity->GetClassName();
+        const char* clientClassName = entity->GetClientClassName();
+        const bool isDeadPlayerCandidate = IsDeadPlayerRagdollCandidate(entity);
+        const bool isExplicitRagdoll = IsRagdollEntity(className, clientClassName);
+        if (isExplicitRagdoll || isDeadPlayerCandidate || (isExplicitRagdoll && entity->HasAnyRagdollState())) {
+            outContext.ragdollHandles.insert(entity->GetHandle().ToInt());
+        }
     }
 
     if (auto* localPlayer = GetSplitScreenPlayer(0); localPlayer && localPlayer->IsPlayerPawn()) {
         CEntityInstance* observedPlayer = localPlayer;
         const auto observerTargetHandle = localPlayer->GetObserverTarget();
         if (observerTargetHandle.IsValid()) {
-            if (auto* observerTarget = GetEntityByHandle(observerTargetHandle); observerTarget && observerTarget->IsPlayerPawn()) {
+            if (auto* observerTarget = GetEntityByHandle(observerTargetHandle); IsPlayerEntity(observerTarget)) {
                 observedPlayer = observerTarget;
             }
         }
@@ -249,6 +289,17 @@ void CAgrRecorder::CollectFrameContext(FrameContext& outContext) const {
             collectPlayerContext(observedPlayer, observedPlayer->GetHandle().GetEntryIndex(), true);
         }
     }
+}
+
+bool CAgrRecorder::HasRagdollState(const FrameContext& frame, CEntityInstance* entity) const {
+    if (!entity) return false;
+    if (frame.ragdollHandles.end() != frame.ragdollHandles.find(entity->GetHandle().ToInt())) return true;
+
+    const char* className = entity->GetClassName();
+    const char* clientClassName = entity->GetClientClassName();
+    if (IsDeadPlayerRagdollCandidate(entity)) return true;
+    if (!IsRagdollEntity(className, clientClassName)) return false;
+    return entity->HasAnyRagdollState();
 }
 
 int CAgrRecorder::FindViewModelOwnerEntryIndex(const FrameContext& frame, CEntityInstance* entity) const {
@@ -270,8 +321,10 @@ CAgrRecorder::RecordCategory CAgrRecorder::ClassifyRecordedEntity(const FrameCon
 
     const char* className = entity->GetClassName();
     const char* clientClassName = entity->GetClientClassName();
+    const bool hasRagdollState = HasRagdollState(frame, entity);
 
-    if (entity->IsPlayerPawn()) return RecordCategory::PlayerPawn;
+    if (hasRagdollState) return RecordCategory::Ragdoll;
+    if (IsPlayerEntity(entity)) return RecordCategory::PlayerPawn;
     if (IsRagdollEntity(className, clientClassName)) return RecordCategory::Ragdoll;
     if (isViewModel || -1 != FindViewModelOwnerEntryIndex(frame, entity)) return RecordCategory::ViewModel;
     if (IsProjectileEntity(className, clientClassName)) return RecordCategory::Projectile;
@@ -318,8 +371,8 @@ bool CAgrRecorder::ShouldRecordEntity(const FrameContext& frame, int entryIndex,
     const char* className = entity->GetClassName();
     const char* clientClassName = entity->GetClientClassName();
 
-    const bool isPlayerPawn = entity->IsPlayerPawn();
-    const bool isRagdoll = IsRagdollEntity(className, clientClassName);
+    const bool isPlayerPawn = IsPlayerEntity(entity);
+    const bool isRagdoll = HasRagdollState(frame, entity) || IsRagdollEntity(className, clientClassName);
     const bool isWeapon = IsWeaponEntity(className, clientClassName);
     const bool isProjectile = IsProjectileEntity(className, clientClassName);
     const int viewModelOwnerEntryIndex = FindViewModelOwnerEntryIndex(frame, entity);
@@ -333,7 +386,7 @@ bool CAgrRecorder::ShouldRecordEntity(const FrameContext& frame, int entryIndex,
     const bool actualVisible = GetEntityVisible(entity, isViewModel);
     outVisible = actualVisible;
     outIsViewModel = isViewModel;
-    outHasPlayerCamera = isPlayerPawn;
+    outHasPlayerCamera = isPlayerPawn && !isRagdoll;
 
     if ((isPlayerPawn || isRagdoll) && m_RecordPlayers) {
         if (!actualVisible && !m_RecordInvisible) return false;
@@ -405,17 +458,10 @@ bool CAgrRecorder::ShouldRecordEntity(const FrameContext& frame, int entryIndex,
         }
 
         if (isHeldWeapon) {
-            if (onSelectedViewModelPath || parentIsViewModel) {
-                outVisible = true;
-                return true;
-            }
+            if (actualVisible) return true;
 
-            if (actualVisible) {
-                return true;
-            }
-
-            outVisible = false;
-            return m_RecordInvisible && (isObservedActiveWeapon || hasViewModelAttachment);
+            // Match Source 1 AGR: carried inventory belongs to the viewmodel path, not recordWeapons.
+            return false;
         }
 
         if (!actualVisible && !m_RecordInvisible) return false;
@@ -427,7 +473,13 @@ bool CAgrRecorder::ShouldRecordEntity(const FrameContext& frame, int entryIndex,
 
 void CAgrRecorder::RecordEntities() {
     FrameContext frameContext;
+    if (2 <= m_Debug) {
+        advancedfx::Message("AGR debug: stage=collect-begin\n");
+    }
     CollectFrameContext(frameContext);
+    if (2 <= m_Debug) {
+        advancedfx::Message("AGR debug: stage=collect-end\n");
+    }
     ++m_DebugStats.frames;
 
     int frameRecordedEntities = 0;
@@ -454,6 +506,10 @@ void CAgrRecorder::RecordEntities() {
         }
     }
     m_PendingDeletedHandles.clear();
+
+    if (2 <= m_Debug) {
+        advancedfx::Message("AGR debug: stage=enumerate-begin\n");
+    }
 
     std::set<int> seenHandles;
 
@@ -524,11 +580,13 @@ void CAgrRecorder::RecordEntities() {
         if (2 <= m_Debug) {
             const char* modelName = SafeCString(entity->GetModelName());
             advancedfx::Message(
-                "AGR debug: record handle=%d visible=%d viewmodel=%d playerCamera=%d class=%s clientClass=%s model=%s\n",
+                "AGR debug: record handle=%d visible=%d viewmodel=%d playerCamera=%d health=%u ragdollState=%d class=%s clientClass=%s model=%s\n",
                 handle,
                 visible ? 1 : 0,
                 isViewModel ? 1 : 0,
                 hasPlayerCamera && ShouldRecordPlayerCamera(entryIndex) ? 1 : 0,
+                entity->GetHealth(),
+                HasRagdollState(frameContext, entity) ? 1 : 0,
                 entity->GetClassName() ? entity->GetClassName() : "",
                 entity->GetClientClassName() ? entity->GetClientClassName() : "",
                 modelName ? modelName : ""
@@ -553,9 +611,13 @@ void CAgrRecorder::RecordEntities() {
         }
     }
 
+    if (2 <= m_Debug) {
+        advancedfx::Message("AGR debug: stage=enumerate-end\n");
+    }
+
     if (1 <= m_Debug) {
         advancedfx::Message(
-            "AGR debug frame %d: recorded=%d players=%d ragdolls=%d weapons=%d projectiles=%d viewmodels=%d playerCameras=%d hidden=%d deleted=%d\n",
+            "AGR debug frame %d: entityRecords=%d playerRecords=%d ragdollRecords=%d weapons=%d projectiles=%d viewmodels=%d playerCameras=%d hidden=%d deleted=%d\n",
             m_DebugStats.frames,
             frameRecordedEntities,
             framePlayers,
@@ -600,10 +662,7 @@ void CAgrRecorder::RecordEntity(int entryIndex, CEntityInstance* entity, bool vi
     m_Record->WriteDictionary("baseanimating");
     {
         std::vector<SOURCESDK::matrix3x4_t> boneTransforms;
-        bool hasBones = false;
-        if (IsRagdollEntity(className, clientClassName)) {
-            hasBones = entity->GetRagdollBones(boneTransforms);
-        }
+        bool hasBones = entity->GetRagdollBones(boneTransforms);
         if (!hasBones) {
             hasBones = entity->GetBindPoseBones(boneTransforms);
         }

@@ -150,7 +150,8 @@
       ],
       "forbiddenPatterns": [
         "camera",
-        "weapons/models/"
+        "weapons/models/",
+        "characters/models/shared/observer/cs_observer\\.vmdl"
       ]
     },
     {
@@ -186,7 +187,8 @@
         "weapons/models/"
       ],
       "forbiddenPatterns": [
-        "characters/models/tm_phoenix/tm_phoenix\\.vmdl"
+        "characters/models/tm_phoenix/tm_phoenix\\.vmdl",
+        "characters/models/shared/observer/cs_observer\\.vmdl"
       ]
     }
   ],
@@ -195,20 +197,17 @@
       "path": "artifacts\\players-parity.agr",
       "expectations": {
         "entityCount": {
-          "operator": "gt",
-          "value": 0
+          "operator": "eq",
+          "valueFromProperty": "boneEntityCount"
         },
-        "uniqueEntityHandleCount": {
-          "operator": "gt",
-          "value": 0
-        },
+        "uniqueEntityHandleCount": 10,
         "boneEntityCount": {
           "operator": "gt",
           "value": 0
         },
         "boneCount": {
           "operator": "gt",
-          "value": 0
+          "valueFromProperty": "boneEntityCount"
         },
         "playerCameraCount": 0,
         "viewModelEntityCount": 0,
@@ -222,10 +221,7 @@
           "operator": "gt",
           "value": 0
         },
-        "uniqueEntityHandleCount": {
-          "operator": "gt",
-          "value": 0
-        },
+        "uniqueEntityHandleCount": 2,
         "invisibleEntityCount": 0,
         "viewModelEntityCount": 0,
         "playerCameraCount": 0
@@ -249,13 +245,14 @@
           "operator": "gt",
           "value": 0
         },
+        "uniqueEntityHandleCount": 10,
         "viewModelEntityCount": {
           "operator": "eq",
           "valueFromProperty": "entityCount"
         },
         "boneEntityCount": {
-          "operator": "gt",
-          "value": 0
+          "operator": "eq",
+          "valueFromProperty": "entityCount"
         },
         "invisibleEntityCount": 0,
         "playerCameraCount": 0
@@ -268,10 +265,8 @@
           "operator": "gt",
           "value": 0
         },
-        "invisibleEntityCount": {
-          "operator": "gt",
-          "value": 0
-        },
+        "uniqueEntityHandleCount": 2,
+        "invisibleEntityCount": 0,
         "viewModelEntityCount": 0,
         "playerCameraCount": 0
       }
@@ -281,7 +276,7 @@
     {
       "leftPath": "artifacts\\weapons-invisible.agr",
       "leftProperty": "uniqueEntityHandleCount",
-      "operator": "gt",
+      "operator": "eq",
       "rightPath": "artifacts\\weapons-world.agr",
       "rightProperty": "uniqueEntityHandleCount"
     },

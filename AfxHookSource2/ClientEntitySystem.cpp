@@ -43,6 +43,11 @@ struct Source2QuaternionStorage {
 	float w;
 };
 
+struct Source2TransformStorage {
+	SOURCESDK::Vector position;
+	Source2QuaternionStorage orientation;
+};
+
 constexpr ptrdiff_t kPermModelDataModelSkeleton = 0x188;
 constexpr ptrdiff_t kModelSkeletonParents = 0x18;
 constexpr ptrdiff_t kModelSkeletonBonePosParent = 0x60;
@@ -133,6 +138,48 @@ bool InvertRigidMatrix(const SOURCESDK::matrix3x4_t& matrix, SOURCESDK::matrix3x
 	outMatrix[2][3] = -(outMatrix[2][0] * matrix[0][3] + outMatrix[2][1] * matrix[1][3] + outMatrix[2][2] * matrix[2][3]);
 
 	return true;
+}
+
+bool IsFiniteMatrix(const SOURCESDK::matrix3x4_t& matrix) {
+	for (int y = 0; y < 3; ++y) {
+		for (int x = 0; x < 4; ++x) {
+			if (!std::isfinite(matrix[y][x])) return false;
+		}
+	}
+
+	const float maxTranslation = 1000000.0f;
+	return
+		std::abs(matrix[0][3]) < maxTranslation
+		&& std::abs(matrix[1][3]) < maxTranslation
+		&& std::abs(matrix[2][3]) < maxTranslation;
+}
+
+bool BuildParentSpaceBonesFromWorld(
+	const CEntityInstance* entity,
+	const std::vector<int16_t>& skeletonParents,
+	const std::vector<SOURCESDK::matrix3x4_t>& worldBoneTransforms,
+	std::vector<SOURCESDK::matrix3x4_t>& outBones) {
+	if (!entity || skeletonParents.size() != worldBoneTransforms.size() || worldBoneTransforms.empty()) return false;
+
+	SOURCESDK::matrix3x4_t rootTransform;
+	const_cast<CEntityInstance*>(entity)->GetAbsTransform(rootTransform);
+	SOURCESDK::matrix3x4_t rootInverse;
+	if (!InvertRigidMatrix(rootTransform, rootInverse)) return false;
+
+	outBones.resize(worldBoneTransforms.size());
+	for (size_t i = 0; i < outBones.size(); ++i) {
+		const int16_t parent = skeletonParents[i];
+		SOURCESDK::matrix3x4_t parentInverse;
+		if (0 <= parent && static_cast<size_t>(parent) < worldBoneTransforms.size()) {
+			if (!InvertRigidMatrix(worldBoneTransforms[parent], parentInverse)) return false;
+		}
+		else {
+			parentInverse = rootInverse;
+		}
+		SOURCESDK::R_ConcatTransforms(parentInverse, worldBoneTransforms[i], outBones[i]);
+	}
+
+	return !outBones.empty();
 }
 
 void QuaternionMatrix(const Source2QuaternionStorage& q, const SOURCESDK::Vector& position, SOURCESDK::matrix3x4_t& outMatrix) {
@@ -316,6 +363,23 @@ const void* ResolveEntityPermModelData(const CEntityInstance* entity) {
 	return ResolvePermModelData(rawModelHandle, entity->GetModelName());
 }
 
+unsigned char* GetEntitySkeletonInstance(const CEntityInstance* entity) {
+	if (!entity) return nullptr;
+
+	auto pBodyComponent = *(u_char**)((u_char*)entity + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
+	if (!pBodyComponent) return nullptr;
+
+	return pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
+}
+
+bool ReadRagdollFlag(const CEntityInstance* entity, ptrdiff_t offset) {
+	if (!entity || 0 == offset) return false;
+
+	unsigned char value = 0;
+	if (!SafeReadObject((const unsigned char*)entity + offset, value)) return false;
+	return 0 != value;
+}
+
 } // namespace
 
 void ** g_pEntityList = nullptr;
@@ -455,6 +519,12 @@ SOURCESDK::CS2::CBaseHandle CEntityInstance::GetViewmodelAttachmentHandle() {
  */
 void CEntityInstance::GetOrigin(float & x, float & y, float & z) {
     auto ptr = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode);
+	if (!ptr) {
+		x = FLT_MAX;
+		y = FLT_MAX;
+		z = FLT_MAX;
+		return;
+	}
 	// See cl_ent_text drawing function. Near "Position: %0.3f, %0.3f, %0.3f\n" or cl_ent_viewoffset related function.
 	auto vector = (float*)(ptr + g_clientDllOffsets.CGameSceneNode.m_vecAbsOrigin);
 	x =  vector[0];
@@ -464,6 +534,12 @@ void CEntityInstance::GetOrigin(float & x, float & y, float & z) {
 
 void CEntityInstance::GetAbsAngles(float& pitch, float& yaw, float& roll) {
     auto ptr = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_pGameSceneNode);
+	if (!ptr) {
+		pitch = 0.0f;
+		yaw = 0.0f;
+		roll = 0.0f;
+		return;
+	}
 	auto angles = (float*)(ptr + g_clientDllOffsets.CGameSceneNode.m_angAbsRotation);
 	pitch = angles[0];
 	yaw = angles[1];
@@ -556,12 +632,15 @@ SOURCESDK::CS2::CBaseHandle CEntityInstance::GetHandle() {
 }
 
 const char* CEntityInstance::GetModelName() const {
-    auto pBodyComponent = *(u_char**)((u_char*)this + g_clientDllOffsets.C_BaseEntity.m_CBodyComponent);
-    if (!pBodyComponent) return nullptr;
-
-    auto pSkeletonInstance = pBodyComponent + g_clientDllOffsets.CBodyComponentSkeletonInstance.m_skeletonInstance;
+    auto pSkeletonInstance = GetEntitySkeletonInstance(this);
+    if (!pSkeletonInstance) return nullptr;
     auto pModelState = pSkeletonInstance + g_clientDllOffsets.CSkeletonInstance.m_modelState;
     return *(const char**)(pModelState + g_clientDllOffsets.CModelState.m_ModelName);
+}
+
+bool CEntityInstance::GetCurrentBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
+	outBones.clear();
+	return false;
 }
 
 bool CEntityInstance::GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
@@ -587,51 +666,104 @@ bool CEntityInstance::GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outB
 bool CEntityInstance::GetRagdollBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const {
 	outBones.clear();
 
-	if (0 == g_clientDllOffsets.C_RagdollProp.m_ragPos || 0 == g_clientDllOffsets.C_RagdollProp.m_ragAngles) {
-		return false;
-	}
-
 	const void* permModelData = ResolveEntityPermModelData(this);
 	if (!permModelData) return false;
 
 	std::vector<int16_t> skeletonParents;
 	if (!TryReadModelSkeletonParents(permModelData, skeletonParents)) return false;
 
-	Source2UtlVectorView<SOURCESDK::Vector> ragPositions;
-	Source2UtlVectorView<SOURCESDK::QAngle> ragAngles;
-	if (!SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragPos, ragPositions)) return false;
-	if (!IsPlausibleVector(ragPositions, static_cast<int>(skeletonParents.size()))) return false;
-	if (!SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragAngles, ragAngles)) return false;
-	if (!IsPlausibleVector(ragAngles, static_cast<int>(skeletonParents.size()))) return false;
+	CEntityInstance* entity = const_cast<CEntityInstance*>(this);
+	const bool looksLikeDeadPawn = entity->IsPlayerPawn() && 0 == entity->GetHealth() && !entity->IsDormant() && 0 < entity->GetRenderAlpha();
 
-	std::vector<SOURCESDK::Vector> worldPositions(skeletonParents.size());
-	std::vector<SOURCESDK::QAngle> worldAngles(skeletonParents.size());
-	if (!SafeReadMemory(ragPositions.m_pMemory, worldPositions.data(), sizeof(SOURCESDK::Vector) * worldPositions.size())) return false;
-	if (!SafeReadMemory(ragAngles.m_pMemory, worldAngles.data(), sizeof(SOURCESDK::QAngle) * worldAngles.size())) return false;
+	if ((HasAnyRagdollState() || looksLikeDeadPawn)
+		&& 0 != g_clientDllOffsets.CBaseAnimGraph.m_RagdollPose
+		&& 0 != g_clientDllOffsets.PhysicsRagdollPose_t.m_Transforms) {
+		Source2UtlVectorView<Source2TransformStorage> ragdollTransforms;
+		const auto* ragdollPoseTransforms =
+			(const unsigned char*)this
+			+ g_clientDllOffsets.CBaseAnimGraph.m_RagdollPose
+			+ g_clientDllOffsets.PhysicsRagdollPose_t.m_Transforms;
 
-	std::vector<SOURCESDK::matrix3x4_t> worldBoneTransforms(skeletonParents.size());
-	for (size_t i = 0; i < worldBoneTransforms.size(); ++i) {
-		SOURCESDK::AngleMatrix(worldAngles[i], worldPositions[i], worldBoneTransforms[i]);
-	}
+		if (SafeReadVectorView(ragdollPoseTransforms, ragdollTransforms)
+			&& IsPlausibleVector(ragdollTransforms, static_cast<int>(skeletonParents.size()))) {
+			std::vector<Source2TransformStorage> transformData(skeletonParents.size());
+			if (SafeReadMemory(ragdollTransforms.m_pMemory, transformData.data(), sizeof(Source2TransformStorage) * transformData.size())) {
+				std::vector<SOURCESDK::matrix3x4_t> poseBoneTransforms(transformData.size());
+				for (size_t i = 0; i < transformData.size(); ++i) {
+					QuaternionMatrix(transformData[i].orientation, transformData[i].position, poseBoneTransforms[i]);
+					if (!IsFiniteMatrix(poseBoneTransforms[i])) return false;
+				}
 
-	SOURCESDK::matrix3x4_t rootTransform;
-	const_cast<CEntityInstance*>(this)->GetAbsTransform(rootTransform);
-	SOURCESDK::matrix3x4_t rootInverse;
-	if (!InvertRigidMatrix(rootTransform, rootInverse)) return false;
+				float originX, originY, originZ;
+				entity->GetOrigin(originX, originY, originZ);
+				const bool looksWorldSpace =
+					1.0f >= std::abs(poseBoneTransforms[0][0][3] - originX)
+					&& 1.0f >= std::abs(poseBoneTransforms[0][1][3] - originY)
+					&& 1.0f >= std::abs(poseBoneTransforms[0][2][3] - originZ);
 
-	outBones.resize(worldBoneTransforms.size());
-	for (size_t i = 0; i < outBones.size(); ++i) {
-		const int16_t parent = skeletonParents[i];
-		SOURCESDK::matrix3x4_t parentInverse;
-		if (0 <= parent && static_cast<size_t>(parent) < worldBoneTransforms.size()) {
-			if (!InvertRigidMatrix(worldBoneTransforms[parent], parentInverse)) return false;
-		} else {
-			parentInverse = rootInverse;
+				if (looksWorldSpace) {
+					if (BuildParentSpaceBonesFromWorld(this, skeletonParents, poseBoneTransforms, outBones)) {
+						return true;
+					}
+				}
+				else {
+					outBones = std::move(poseBoneTransforms);
+					if (!outBones.empty()) return true;
+				}
+			}
 		}
-		SOURCESDK::R_ConcatTransforms(parentInverse, worldBoneTransforms[i], outBones[i]);
 	}
 
-	return !outBones.empty();
+	if (0 != g_clientDllOffsets.C_RagdollProp.m_ragPos && 0 != g_clientDllOffsets.C_RagdollProp.m_ragAngles) {
+		Source2UtlVectorView<SOURCESDK::Vector> ragPositions;
+		Source2UtlVectorView<SOURCESDK::QAngle> ragAngles;
+		if (SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragPos, ragPositions)
+			&& IsPlausibleVector(ragPositions, static_cast<int>(skeletonParents.size()))
+			&& SafeReadVectorView((unsigned char*)this + g_clientDllOffsets.C_RagdollProp.m_ragAngles, ragAngles)
+			&& IsPlausibleVector(ragAngles, static_cast<int>(skeletonParents.size()))) {
+			std::vector<SOURCESDK::Vector> worldPositions(skeletonParents.size());
+			std::vector<SOURCESDK::QAngle> worldAngles(skeletonParents.size());
+			if (SafeReadMemory(ragPositions.m_pMemory, worldPositions.data(), sizeof(SOURCESDK::Vector) * worldPositions.size())
+				&& SafeReadMemory(ragAngles.m_pMemory, worldAngles.data(), sizeof(SOURCESDK::QAngle) * worldAngles.size())) {
+				std::vector<SOURCESDK::matrix3x4_t> worldBoneTransforms(skeletonParents.size());
+				for (size_t i = 0; i < worldBoneTransforms.size(); ++i) {
+					SOURCESDK::AngleMatrix(worldAngles[i], worldPositions[i], worldBoneTransforms[i]);
+					if (!IsFiniteMatrix(worldBoneTransforms[i])) return false;
+				}
+
+				if (BuildParentSpaceBonesFromWorld(this, skeletonParents, worldBoneTransforms, outBones)) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool CEntityInstance::HasBuiltRagdoll() const {
+	return ReadRagdollFlag(this, g_clientDllOffsets.CBaseAnimGraph.m_bBuiltRagdoll);
+}
+
+bool CEntityInstance::HasClientSideRagdoll() const {
+	if (ReadRagdollFlag(this, g_clientDllOffsets.CBaseAnimGraph.m_bRagdollClientSide)) return true;
+
+	if (0 == g_clientDllOffsets.CBaseAnimGraph.m_pClientsideRagdoll) return false;
+
+	CEntityInstance* clientSideRagdoll = nullptr;
+	if (!SafeReadObject((const unsigned char*)this + g_clientDllOffsets.CBaseAnimGraph.m_pClientsideRagdoll, clientSideRagdoll) || !clientSideRagdoll) {
+		return false;
+	}
+
+	return clientSideRagdoll != this;
+}
+
+bool CEntityInstance::IsRagdollEnabled() const {
+	return ReadRagdollFlag(this, g_clientDllOffsets.CBaseAnimGraph.m_bRagdollEnabled);
+}
+
+bool CEntityInstance::HasAnyRagdollState() const {
+	return HasBuiltRagdoll() || HasClientSideRagdoll() || IsRagdollEnabled();
 }
 
 typedef	void (__fastcall * org_LookupAttachment_t)(void* This, uint8_t& outIdx, const char* attachmentName);

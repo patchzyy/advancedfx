@@ -65,6 +65,7 @@ private:
         std::unordered_map<int, int> viewModelWeaponOwnerByHandle;
         std::unordered_set<int> activeWeaponHandles;
         std::unordered_set<int> observedPlayerEntryIndices;
+        std::unordered_set<int> ragdollHandles;
     };
 
     CAgrRecorder() = default;
@@ -76,7 +77,11 @@ private:
     bool ShouldRecordEntity(const FrameContext& frame, int entryIndex, class CEntityInstance* entity, bool& outVisible, bool& outIsViewModel, bool& outHasPlayerCamera) const;
     bool IsWeaponEntity(const char* className, const char* clientClassName) const;
     bool IsProjectileEntity(const char* className, const char* clientClassName) const;
+    bool IsObserverPawnEntity(const char* className, const char* clientClassName) const;
+    bool IsPlayerEntity(class CEntityInstance* entity) const;
+    bool IsDeadPlayerRagdollCandidate(class CEntityInstance* entity) const;
     bool IsRagdollEntity(const char* className, const char* clientClassName) const;
+    bool HasRagdollState(const FrameContext& frame, class CEntityInstance* entity) const;
     bool IsViewModelEntity(const char* className, const char* clientClassName) const;
     bool ShouldRecordPlayerCamera(int entryIndex) const;
     int GetAgrVersion() const;

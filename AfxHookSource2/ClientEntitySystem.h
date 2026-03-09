@@ -80,8 +80,13 @@ public:
     SOURCESDK::CS2::CBaseHandle GetHandle();
 
     const char* GetModelName() const;
+    bool GetCurrentBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
     bool GetBindPoseBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
     bool GetRagdollBones(std::vector<SOURCESDK::matrix3x4_t>& outBones) const;
+    bool HasBuiltRagdoll() const;
+    bool HasClientSideRagdoll() const;
+    bool IsRagdollEnabled() const;
+    bool HasAnyRagdollState() const;
 
     uint8_t LookupAttachment(const char* attachmentName);
 	bool GetAttachment(uint8_t idx, SOURCESDK::Vector &origin, SOURCESDK::Quaternion &angles);
